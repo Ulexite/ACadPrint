@@ -1,14 +1,14 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
-# SharpDevelop 4.2.1.8805
+﻿Microsoft Visual Studio Solution File, Format Version 11.00
+
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2655139F-B74F-43F7-AF81-979D81EE583A}"
 	ProjectSection(SolutionItems) = postProject
 		CSPDS.build = CSPDS.build
 	EndProjectSection
 EndProject
+
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSPDS", "CSPDS\CSPDS.csproj", "{A1C752F5-8EF6-44A6-BFAD-C3948D05C452}"
 EndProject
+
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
