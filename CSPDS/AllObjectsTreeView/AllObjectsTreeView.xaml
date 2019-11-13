@@ -12,7 +12,7 @@
         <TreeView Name="tvrObjects">
             <TreeView.ItemTemplate>
                 <HierarchicalDataTemplate DataType="{x:Type source:ObjectDescriptionNode}" ItemsSource="{Binding InnerObjects}">
-                    <TextBlock Text="{Binding ObjectClassFqn}" />
+                    <TextBlock Text="{Binding Name}" />
                 </HierarchicalDataTemplate>
             </TreeView.ItemTemplate>
         </TreeView>
