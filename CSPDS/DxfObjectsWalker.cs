@@ -47,6 +47,11 @@ namespace CSPDS
     {
         private Dictionary<string, DxfTypesDescriptor> types = new Dictionary<string, DxfTypesDescriptor>();
 
+        private Dictionary<string, List<string>> walkableProperties = new Dictionary<string, List<string>>()
+        {
+            {"Autodesk.AutoCAD.DatabaseServices.TypedValue", new List<string>() {"Value"}}
+        };
+
         public Dictionary<string, DxfTypesDescriptor> Types => types;
 
         private Transaction tr;
@@ -85,6 +90,8 @@ namespace CSPDS
 
             try
             {
+                if(obj is string)
+                    return new ObjectDescriptionNode(obj as string, "str");
                 WalkType(obj);
                 if (obj is ObjectId)
                     return WalkOjectId((ObjectId) obj);
@@ -103,12 +110,28 @@ namespace CSPDS
 
         private ObjectDescriptionNode WalkLeafObject(object o)
         {
-            throw new NotImplementedException();
+            var node = new ObjectDescriptionNode("", o.GetType().FullName);
+            string fullTypeName = o.GetType().FullName;
+            if (walkableProperties.ContainsKey(fullTypeName))
+                foreach (var prop in o.GetType().GetProperties())
+                {
+                    if (walkableProperties[fullTypeName].Contains(prop.Name))
+                        try
+                        {
+                            node.Add(WalkObject(prop.GetValue(o, null)));
+                        }
+                        catch (Exception exception)
+                        {
+                            node.Add(forError(exception));
+                        }
+                }
+
+            return node;
         }
 
         private ObjectDescriptionNode WalkEnumerable(IEnumerable enumerable)
         {
-            ObjectDescriptionNode node = new ObjectDescriptionNode("list:", enumerable.GetType().FullName);
+            ObjectDescriptionNode node = new ObjectDescriptionNode("list", enumerable.GetType().FullName);
             foreach (var obj in enumerable)
             {
                 node.Add(WalkObject(obj));
@@ -119,10 +142,10 @@ namespace CSPDS
 
         private ObjectDescriptionNode WalkDictionary(IDictionary dict)
         {
-            ObjectDescriptionNode dictNode = new ObjectDescriptionNode("list", dict.GetType().FullName);
+            ObjectDescriptionNode dictNode = new ObjectDescriptionNode("dict", dict.GetType().FullName);
             foreach (var key in dict.Keys)
             {
-                dictNode.Add(new ObjectDescriptionNode(key.ToString(), "key:")).Add(WalkObject(dict[key]));
+                dictNode.Add(new ObjectDescriptionNode(key.ToString(), "key")).Add(WalkObject(dict[key]));
             }
 
             return dictNode;
@@ -137,11 +160,6 @@ namespace CSPDS
                 var typeDescriptor = new DxfTypesDescriptor(o.GetType());
                 types.Add(typeName, typeDescriptor);
             }
-        }
-
-        private ObjectDescriptionNode WalkSymbolTable(SymbolTable symbolTable)
-        {
-            throw new NotImplementedException();
         }
 
         private ObjectDescriptionNode WalkOjectId(ObjectId id)
