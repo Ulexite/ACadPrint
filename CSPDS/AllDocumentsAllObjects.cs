@@ -28,7 +28,7 @@ namespace CSPDS
         private static ObjectDescriptionNode fromDocument(Document document)
         {
             ObjectDescriptionNode fileNode = new ObjectDescriptionNode("file:" + document.Name);
-            fileNode.InnerObjects.Add(fromUserData(document.UserData));
+            
 
             var db = document.Database;
             using (Transaction tr = db.TransactionManager.StartTransaction())
@@ -156,28 +156,4 @@ namespace CSPDS
     }
 
 
-    public class ObjectDescriptionNode
-    {
-        private readonly String name;
-        private readonly List<ObjectDescriptionNode> innerObjects = new List<ObjectDescriptionNode>();
-        private readonly String description;
-
-        public ObjectDescriptionNode(string name, string description)
-        {
-            this.name = name;
-            this.description = description;
-        }
-
-        public ObjectDescriptionNode(string name)
-        {
-            this.name = name;
-            this.description = "";
-        }
-
-        public string Name => name;
-
-        public List<ObjectDescriptionNode> InnerObjects => innerObjects;
-
-        public string Description => description;
-    }
 }
