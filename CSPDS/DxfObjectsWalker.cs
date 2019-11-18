@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.Customization;
+using interop = System.Runtime.InteropServices;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Windows.OPM;
+using Autodesk.AutoCAD.Runtime;
+using Exception = System.Exception;
 
 namespace CSPDS
 {
@@ -48,9 +52,20 @@ namespace CSPDS
     {
         private Dictionary<string, DxfTypesDescriptor> types = new Dictionary<string, DxfTypesDescriptor>();
         private List<string> visitedObjects = new List<string>();
+
         private List<string> walkableTypes = new List<string>()
         {
-            "Autodesk.AutoCAD.DatabaseServices.ObjectId"
+            "Autodesk.AutoCAD.DatabaseServices.ObjectId",
+            "Autodesk.AutoCAD.DatabaseServices.ResultBuffer",
+            "Autodesk.AutoCAD.DatabaseServices.HyperLinkCollection",
+            "System.String",
+            "System.Double",
+            "System.Int32",
+            "System.Collections.ArrayList",
+            "System.Object",
+            "System.Guid",
+            "System.Boolean",
+            "System.__ComObject",
         };
 
         private Dictionary<string, List<string>> walkableProperties = new Dictionary<string, List<string>>()
@@ -61,6 +76,11 @@ namespace CSPDS
         public Dictionary<string, DxfTypesDescriptor> Types => types;
 
         private Transaction tr;
+
+        public DxfObjectsWalker()
+        {
+            Assembly.LoadFrom("asdkOPMNetExt.dll");
+        }
 
         public ObjectDescriptionNode WalkAllDocuments(DocumentCollection documentCollection)
         {
@@ -90,6 +110,19 @@ namespace CSPDS
             return fileNode;
         }
 
+        public ObjectDescriptionNode WalkObjectOfDocument(Document document, object obj)
+        {
+            ObjectDescriptionNode root = new ObjectDescriptionNode("root", "");
+            using (Transaction transaction = document.TransactionManager.StartTransaction())
+            {
+                tr = transaction;
+                root.Add(WalkObject(obj));
+            }
+
+            tr = null;
+            return root;
+        }
+
         private ObjectDescriptionNode WalkObject(object obj)
         {
             if (obj == null)
@@ -101,12 +134,24 @@ namespace CSPDS
                     return new ObjectDescriptionNode(obj as string, "str");
                 if (obj is byte[])
                     return new ObjectDescriptionNode(ByteArrayToString(obj as byte[]), "bytes");
-                
+
                 WalkType(obj);
+                if (obj.GetType().FullName.Equals("System.__ComObject") )
+                    return WalkComObject(obj);
+                if (obj is Guid)
+                    return WalkGUID((Guid)obj);
+                
+                if (obj is RegAppTableRecord)
+                    return WalkRegAppTableRecord(obj as RegAppTableRecord);
+                if (obj is BlockTableRecord)
+                    return WalkBlockTableRecord(obj as BlockTableRecord);
+                if (obj is BlockReference)
+                    return WalkBlockReference(obj as BlockReference);
+
                 if (obj is ObjectId)
                     return WalkOjectId((ObjectId) obj);
                 if (obj is TypedValue)
-                    return WalkTypedValue((TypedValue)obj);
+                    return WalkTypedValue((TypedValue) obj);
                 if (obj is IDictionary)
                     return WalkDictionary(obj as IDictionary);
                 if (obj is IEnumerable)
@@ -120,35 +165,109 @@ namespace CSPDS
             }
         }
 
+        private ObjectDescriptionNode WalkGUID(Guid o)
+        {
+            var node = WalkLeafObject(o);
+            node.Add(Type.GetTypeFromCLSID(o).FullName, "Type");
+            return node;
+        }
+
+        private ObjectDescriptionNode WalkComObject(object obj)
+        {
+            var unknown = interop.Marshal.GetIUnknownForObject(obj);
+            var objNode = new ObjectDescriptionNode(unknown.ToString(), unknown.GetType().FullName);
+                
+            return objNode;
+        }
+
+        private ObjectDescriptionNode WalkBlockReference(BlockReference blockReference)
+        {
+            var brNode = WalkLeafObject(blockReference);
+            try
+            {
+                brNode.Add(WalkObject(blockReference.AttributeCollection));
+            }
+            catch (Exception e)
+            {
+                brNode.Add(forError(e));
+            }
+            try
+            {
+                brNode.Add(WalkObject(blockReference.DynamicBlockReferencePropertyCollection));
+            }
+            catch (Exception e)
+            {
+                brNode.Add(forError(e));
+            }
+            try
+            {
+                brNode.Add(WalkObject(blockReference.DynamicBlockTableRecord));
+            }
+            catch (Exception e)
+            {
+                brNode.Add(forError(e));
+            }
+            return brNode;
+        }
+
+        private ObjectDescriptionNode WalkBlockTableRecord(BlockTableRecord blockTableRecord)
+        {
+            var btrNode = WalkEnumerable(blockTableRecord);
+            var brIds = blockTableRecord.GetBlockReferenceIds(false, false);
+            foreach (var brId in brIds)
+            {
+                try
+                {
+                    btrNode.Add(WalkObject(brId));
+                }
+                catch (Exception exception)
+                {
+                    btrNode.Add(forError(exception));
+                }
+            }
+
+            return btrNode;
+        }
+
+
         private ObjectDescriptionNode WalkTypedValue(TypedValue typedValue)
         {
             var valueNode = new ObjectDescriptionNode("", typedValue.GetType().FullName);
             valueNode.Add(WalkObject(typedValue.Value));
-            string typeName = "unknownType: "+typedValue.TypeCode;
+            string typeName = "unknownType: " + typedValue.TypeCode;
             try
             {
                 var type = (DxfCode) typedValue.TypeCode;
                 typeName = type.ToString();
             }
-            catch(Exception){}
+            catch (Exception)
+            {
+            }
 
             valueNode.Add(new ObjectDescriptionNode(typeName, "DxfCode"));
             return valueNode;
         }
 
-        private  string ByteArrayToString(byte[] ba)
+        private ObjectDescriptionNode WalkRegAppTableRecord(RegAppTableRecord app)
+        {
+            var appNode = WalkLeafObject(app);
+            return appNode;
+        }
+
+        private string ByteArrayToString(byte[] ba)
         {
             StringBuilder hex = new StringBuilder(ba.Length * 2);
             foreach (byte b in ba)
                 hex.AppendFormat("{0:x2}", b);
             return hex.ToString();
-        }        
+        }
 
         private ObjectDescriptionNode WalkLeafObject(object o)
         {
-            var node = new ObjectDescriptionNode("", o.GetType().FullName);
             string fullTypeName = o.GetType().FullName;
-
+            var name = fullTypeName == o.ToString() ? "" : o.ToString();
+            var node = new ObjectDescriptionNode(name, fullTypeName);
+        
 
             foreach (var prop in o.GetType().GetProperties())
             {
@@ -161,16 +280,59 @@ namespace CSPDS
                     }
                     catch (Exception exception)
                     {
-                        node.Add(forError(exception));
+                        node.Add(prop.Name, "property").Add(forError(exception));
                     }
             }
 
+            if(o is RXObject)
+                node.Add(WalkForDynamicProperties(o as RXObject));
             return node;
+        }
+
+        private ObjectDescriptionNode WalkForDynamicProperties(RXObject o)
+        {
+            var node = new ObjectDescriptionNode("dynamic properties");
+            try
+            {
+                    Dictionary classDict = SystemObjects.ClassDictionary;
+                    IPropertyManager2 opm = (IPropertyManager2) xOPM.xGET_OPMPROPERTY_MANAGER(o.GetRXClass());
+                    
+                    int propertyCount = 1;
+                    unsafe
+                    {
+                        opm.GetDynamicPropertyCountEx(&propertyCount);
+                        //opm.GetDynamicClassInfo()
+                    }
+                    
+                    node = new ObjectDescriptionNode("dynamic properties ("+propertyCount+")");
+
+                    for (int id = 0; id < propertyCount; ++id)
+                    {
+                        object value = null;
+                        opm.GetDynamicProperty(id, out value);
+                        if (value != null)
+                        {
+                            node.Add( WalkObject(value));
+                        }
+                        else
+                        {
+                            return node.Add( forNull());
+                        }
+                    }
+                
+            }
+            catch (Exception exception)
+            {
+                return forError(exception);
+            }
+
+            return node;
+
         }
 
         private ObjectDescriptionNode WalkEnumerable(IEnumerable enumerable)
         {
-            ObjectDescriptionNode node = new ObjectDescriptionNode("list", enumerable.GetType().FullName);
+            ObjectDescriptionNode node = WalkLeafObject(enumerable);
             foreach (var obj in enumerable)
             {
                 node.Add(WalkObject(obj));
@@ -205,12 +367,15 @@ namespace CSPDS
         {
             string strIdDec = id.ToString().Trim().Replace("(", "").Replace(")", "");
             string strIdHex = Convert.ToInt64(strIdDec).ToString("X");
-            
+
             bool visited = visitedObjects.Contains(strIdHex);
-            ObjectDescriptionNode idNode = new ObjectDescriptionNode(strIdHex, visited?"visited_id":"id");
-            visitedObjects.Add(strIdHex);
+            ObjectDescriptionNode idNode = new ObjectDescriptionNode(strIdHex, visited ? "visited_id" : "id");
+
+            idNode.Add(new ObjectDescriptionNode(DBObject.IsCustomObject(id).ToString(), "isCustom"));
             
-            if(!visited)
+            visitedObjects.Add(strIdHex);
+
+            if (!visited)
                 idNode.Add(WalkObject(tr.GetObject(id, OpenMode.ForRead)));
             return idNode;
         }
@@ -223,7 +388,8 @@ namespace CSPDS
 
         private ObjectDescriptionNode forError(Exception exception)
         {
-            return new ObjectDescriptionNode(exception.StackTrace, exception.GetType().FullName);
+            return new ObjectDescriptionNode(exception.Message + "::" + exception.StackTrace,
+                exception.GetType().FullName + "::");
         }
     }
 
