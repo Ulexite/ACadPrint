@@ -1,8 +1,8 @@
 ﻿#region Using directives
 
-using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Autodesk.AutoCAD.Runtime;
 
 #endregion
 
@@ -14,9 +14,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("CSPDS")]
-[assembly: AssemblyCopyright("Copyright 2013")]
-[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCopyright("Copyright 2019")]
+[assembly: AssemblyTrademark("ЦПП")]
 [assembly: AssemblyCulture("")]
+
 
 // This sets the default COM visibility of types in the assembly to invisible.
 // If you need to expose a type to COM, use [ComVisible(true)] on that type.

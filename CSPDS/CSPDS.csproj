@@ -111,6 +111,8 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq">
@@ -119,10 +121,13 @@
     <Reference Include="WindowsBase">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
+    <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AllDocumentsAllObjects.cs" />
+    <Compile Include="BorderEnumerator.cs" />
     <Compile Include="CommandClass.cs" />
+    <Compile Include="Initializator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\CmdOptions.Designer.cs">
       <DependentUpon>CmdOptions.resx</DependentUpon>
@@ -143,9 +148,16 @@
       <DependentUpon>AllObjectsTreeView.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Views\BorderByFields.xaml.cs">
+      <DependentUpon>BorderByFiles.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Page Include="AllObjectsTreeView\AllObjectsTreeView.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Views\BorderByFiles.xaml" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\CmdOptions.resx">

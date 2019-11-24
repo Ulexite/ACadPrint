@@ -1,0 +1,29 @@
+﻿<UserControl x:Class="CSPDS.Views.BorderByFiles"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:CSPDS.Views"
+        xmlns:source="clr-namespace:CSPDS"
+        mc:Ignorable="d" Height="200" Width="300">
+
+    <Grid Margin="10">
+        <TreeView Name="tvrObjects">
+            <TreeView.Resources>
+                <HierarchicalDataTemplate DataType="{x:Type source:FileDescriptor}" ItemsSource="{Binding Borders}">
+                    <TextBlock Text="{Binding Name}" />
+                </HierarchicalDataTemplate>
+                <DataTemplate DataType="{x:Type source:BorderDescriptor}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}" />
+                        <TextBlock Text=" (" Foreground="Green" />
+                        <TextBlock Text="{Binding Format}" Foreground="Green" />
+                        <TextBlock Text=")" Foreground="Green" />
+                    </StackPanel>
+                </DataTemplate>
+            </TreeView.Resources>
+
+        </TreeView>
+    </Grid>
+
+</UserControl>
