@@ -1,29 +1,73 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
 
 namespace CSPDS
 {
     public class BorderEnumerator
     {
-        public List<FileDescriptor> fromAllFiles()
+        private ObservableCollection<FileDescriptor> files = new ObservableCollection<FileDescriptor>();
+        private Dictionary<string, FileDescriptor> fullFileNames = new Dictionary<string, FileDescriptor>();
+
+        public ObservableCollection<FileDescriptor> refreshBorderList(DocumentCollection documents)
         {
-            List<FileDescriptor> files = new List<FileDescriptor>();
-            var fd = new FileDescriptor("aaa");
-            fd.Borders.Add(new BorderDescriptor("AAAAA", "A3x3"));
-            fd.Borders.Add(new BorderDescriptor("sdfsdd dhfnfdkl gkljs dfkls dfljsd fklsd flkjsd flskdjf sdkljf skdlfj ", "A4"));
-            fd.Borders.Add(new BorderDescriptor("sdfsdd fklsd flkjsd flskdjf sdkljf skdlfj ", "A0"));
-            files.Add(fd);
+            fullFileNames.Clear();
+            files.Clear();
+            foreach (Document document in Application.DocumentManager)
+            {
+                string name = document.Name;
+                if (!document.IsNamedDrawing)
+                    name = "*" + name;
+                FileDescriptor descriptor = GetDescriptorFor(name);
+                foreach (BorderDescriptor border in BordersInDocument(document))
+                {
+                    descriptor.Borders.Add(border);
+                }
+            }
+
             return files;
+        }
+
+        private IEnumerable<BorderDescriptor> BordersInDocument(Document document)
+        {
+            var db = document.Database;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                BlockTable blockTable = (BlockTable) tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                foreach (ObjectId  recordId in blockTable)
+                {
+                    BlockTableRecord record = (BlockTableRecord) tr.GetObject(recordId, OpenMode.ForRead);
+
+                    foreach (ObjectId objectId in record)
+                    {
+                        var obj = tr.get
+                    }
+                }
+            }
+        }
+
+
+        private FileDescriptor GetDescriptorFor(string fullFileName)
+        {
+            if (fullFileNames.ContainsKey(fullFileName))
+                return fullFileNames[fullFileName];
+
+            FileDescriptor fd = new FileDescriptor(fullFileName);
+            files.Add(fd);
+            fullFileNames.Add(fullFileName, fd);
+            return fd;
         }
     }
 
     public class FileDescriptor
     {
         private string name;
-        private List<BorderDescriptor> borders = new List<BorderDescriptor>();
+        private ObservableCollection<BorderDescriptor> borders = new ObservableCollection<BorderDescriptor>();
 
         public string Name => name;
 
-        public List<BorderDescriptor> Borders => borders;
+        public ObservableCollection<BorderDescriptor> Borders => borders;
 
         public FileDescriptor(string name)
         {
@@ -33,9 +77,22 @@ namespace CSPDS
 
     public class BorderDescriptor
     {
+        //Название
         private string name;
+
+        //Номер листа
+        private int sheetNumber = 1;
+
+        public int SheetNumber => sheetNumber;
+
+        //Формат 
         private string format;
-        
+
+        //Название набора настроек плоттера
+
+        //Последний раз печаталось.
+
+
         public string Name => name;
 
         public string Format => format;

@@ -2,6 +2,8 @@
 using System.Drawing;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.EditorInput;
 
 //Autodesk
 using Autodesk.AutoCAD.Runtime;
@@ -21,31 +23,29 @@ namespace CSPDS
     /// </summary>
     public class CommandClass
     {
-        private static PaletteSet ps;
-
-
-        [CommandMethod("ShowWPF")]
-        public void showPallete()
+        private static PaletteSet pallete;
+        BorderEnumerator enumerator = new BorderEnumerator();
+        BorderByFiles borders;
+        
+        [CommandMethod("ShowCPPPrinter")]
+        public void ShowPallete()
         {
-            try
+            if (pallete is null)
             {
-                ps = new PaletteSet("Форматы по файлам");
-                ps.Size = new Size(400, 600);
-                ps.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
-                BorderEnumerator enumerator = new BorderEnumerator();
-                BorderByFiles borders = new BorderByFiles(enumerator.fromAllFiles());
+                pallete = new PaletteSet("Печать ЦПП");
+                borders= new BorderByFiles(enumerator.refreshBorderList(Application.DocumentManager));
                 ElementHost host = new ElementHost();
                 host.Dock = DockStyle.Fill;
                 host.Child = borders;
-                ps.Add("Форматы", host);
-                ps.KeepFocus = true;
-                ps.Visible = true;
+                pallete.DockEnabled = (DockSides)((int)DockSides.Left + (int)DockSides.Right);
+                pallete.Add("Форматы по файлам", host);
+                pallete.KeepFocus = true;
+                pallete.Visible = true;
             }
-            catch (Exception e)
+            else
             {
-                Console.WriteLine(e.Message);
+                enumerator.refreshBorderList(Application.DocumentManager);
             }
-            
         }
         
         [CommandMethod("showTest", CommandFlags.Modal | CommandFlags.NoPaperSpace | CommandFlags.UsePickSet)]
