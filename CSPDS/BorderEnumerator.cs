@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Internal.PropertyInspector;
 
 namespace CSPDS
 {
@@ -35,16 +37,117 @@ namespace CSPDS
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 BlockTable blockTable = (BlockTable) tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-                foreach (ObjectId  recordId in blockTable)
+                foreach (ObjectId recordId in blockTable)
                 {
                     BlockTableRecord record = (BlockTableRecord) tr.GetObject(recordId, OpenMode.ForRead);
 
                     foreach (ObjectId objectId in record)
                     {
-                        var obj = tr.get
+                        var obj = tr.GetObject(objectId, OpenMode.ForRead);
+                        if (obj.GetType().FullName.Equals("Autodesk.AutoCAD.DatabaseServices.ImpCurve"))
+                        {
+                            //if mcd
+                            yield return DescriptorForBorder(objectId);
+                        }
                     }
                 }
             }
+        }
+
+        private BorderDescriptor DescriptorForBorder(ObjectId objectId)
+        {
+            try
+            {
+                IntPtr pUnknown = ObjectPropertyManagerPropertyUtility.GetIUnknownFromObjectId(objectId);
+                if (pUnknown != IntPtr.Zero)
+                {
+                    using (CollectionVector properties =
+                        ObjectPropertyManagerProperties.GetProperties(objectId, false, false))
+                    {
+                        if (properties.Count() > 0)
+                        {
+                            using (CategoryCollectable category = properties.Item(0) as CategoryCollectable)
+                            {
+                                CollectionVector props = category.Properties;
+                                Dictionary<String, PropertyCollectable> propByName =
+                                    new Dictionary<string, PropertyCollectable>();
+                                for (int i = 0; i < props.Count(); ++i)
+                                {
+                                    using (PropertyCollectable prop = props.Item(i) as PropertyCollectable)
+                                    {
+                                        if (prop != null)
+                                        {
+                                            propByName.Add(prop.CollectableName.Trim(), prop);
+                                        }
+                                    }
+                                }
+
+                                return DescriptorFromProperties(propByName, pUnknown);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                return ForError(e.Message);
+            }
+
+            return ForError("Что-то пошло не так:формат не получилось вытащить");
+        }
+
+        private BorderDescriptor DescriptorFromProperties(Dictionary<string, PropertyCollectable> propByName,
+            IntPtr pUnknown)
+        {
+            string sheetCountProp = "Листов";
+            string sheetNumberProp = "Лист";
+            string formatProp = "Формат";
+            string lastName0 = "Наименование чертежа";
+            string lastName1 = "Наименование чертежа 1";
+            string lastName2 = "Наименование чертежа 2";
+            string firstName0 = "Наименование1";
+            string firstName1 = "Наименование2";
+            string firstName2 = "Наименование3";
+
+            string format = GetPropValue(propByName[formatProp], pUnknown);
+
+            string lastName = ComposeName(GetPropValue(propByName[lastName0], pUnknown),
+                GetPropValue(propByName[lastName1], pUnknown),
+                GetPropValue(propByName[lastName2], pUnknown));
+
+            string firstName = ComposeName(GetPropValue(propByName[firstName0], pUnknown),
+                GetPropValue(propByName[firstName1], pUnknown),
+                GetPropValue(propByName[firstName2], pUnknown));
+
+            int sheetCount = 0;
+            Int32.TryParse(GetPropValue(propByName[sheetCountProp], pUnknown), out sheetCount);
+            int sheetNumber = 0;
+            Int32.TryParse(GetPropValue(propByName[sheetNumberProp], pUnknown), out sheetNumber);
+
+            return new BorderDescriptor(firstName + " : " + lastName, format, sheetNumber, sheetCount);
+        }
+
+        private string ComposeName(string sub0, string sub1, string sub2)
+        {
+            return sub0.Trim() + " " +
+                   sub1.Trim() + " " +
+                   sub2.Trim() + " ";
+        }
+
+        private string GetPropValue(PropertyCollectable propertyCollectable, IntPtr pUnknown)
+        {
+            object value = null;
+            if (propertyCollectable.GetValue(pUnknown, ref value) && value != null)
+            {
+                return value.ToString();
+            }
+
+            return "";
+        }
+
+        private BorderDescriptor ForError(string errorMsg)
+        {
+            return new BorderDescriptor(errorMsg);
         }
 
 
@@ -77,30 +180,42 @@ namespace CSPDS
 
     public class BorderDescriptor
     {
+        //Формат 
+        private string format;
+
         //Название
         private string name;
 
         //Номер листа
-        private int sheetNumber = 1;
+        private int sheetNumber;
 
-        public int SheetNumber => sheetNumber;
-
-        //Формат 
-        private string format;
+        //Всего листов
+        private int sheetCount;
 
         //Название набора настроек плоттера
 
         //Последний раз печаталось.
 
-
         public string Name => name;
 
         public string Format => format;
+        public int SheetCount => sheetCount;
+        public int SheetNumber => sheetNumber;
 
-        public BorderDescriptor(string name, string format)
+        public BorderDescriptor(string format, string name, int sheetNumber, int sheetCount)
+        {
+            this.format = format;
+            this.name = name;
+            this.sheetNumber = sheetNumber;
+            this.sheetCount = sheetCount;
+        }
+
+        public BorderDescriptor(string name)
         {
             this.name = name;
-            this.format = format;
+            this.format = "";
+            this.sheetCount = 0;
+            this.sheetNumber = 0;
         }
     }
 }

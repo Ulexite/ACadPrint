@@ -15,6 +15,10 @@
                 </HierarchicalDataTemplate>
                 <DataTemplate DataType="{x:Type source:BorderDescriptor}">
                     <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding SheetNumber}" Foreground="Yellow" />
+                        <TextBlock Text="/" />
+                        <TextBlock Text="{Binding SheetCount}" Foreground="Yellow"/>
+                        <TextBlock Text=" :" />
                         <TextBlock Text="{Binding Name}" />
                         <TextBlock Text=" (" Foreground="Green" />
                         <TextBlock Text="{Binding Format}" Foreground="Green" />
