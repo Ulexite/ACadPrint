@@ -17,7 +17,7 @@ using Autodesk.AutoCAD.Runtime;
 [assembly: AssemblyCopyright("Copyright 2019")]
 [assembly: AssemblyTrademark("ЦПП")]
 [assembly: AssemblyCulture("")]
-
+[assembly: log4net.Config.XmlConfigurator(ConfigFile = "log4net.config")]
 
 // This sets the default COM visibility of types in the assembly to invisible.
 // If you need to expose a type to COM, use [ComVisible(true)] on that type.

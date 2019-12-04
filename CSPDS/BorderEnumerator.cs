@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Autodesk.AutoCAD.ApplicationServices;
@@ -9,18 +10,25 @@ namespace CSPDS
 {
     public class BorderEnumerator
     {
+        private static readonly log4net.ILog _log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        
         private ObservableCollection<FileDescriptor> files = new ObservableCollection<FileDescriptor>();
         private Dictionary<string, FileDescriptor> fullFileNames = new Dictionary<string, FileDescriptor>();
 
         public ObservableCollection<FileDescriptor> refreshBorderList(DocumentCollection documents)
         {
+            _log.Debug("started");
             fullFileNames.Clear();
             files.Clear();
+            
             foreach (Document document in Application.DocumentManager)
             {
                 string name = document.Name;
+                _log.Debug(String.Format("for document: {0}",name));
+
                 if (!document.IsNamedDrawing)
                     name = "*" + name;
+                
                 FileDescriptor descriptor = GetDescriptorFor(name);
                 foreach (BorderDescriptor border in BordersInDocument(document))
                 {
@@ -43,9 +51,14 @@ namespace CSPDS
 
                     foreach (ObjectId objectId in record)
                     {
+                        _log.Debug(String.Format("for objectId: {0:X}",objectId));
+
                         var obj = tr.GetObject(objectId, OpenMode.ForRead);
+                        
                         if (obj.GetType().FullName.Equals("Autodesk.AutoCAD.DatabaseServices.ImpCurve"))
                         {
+                            _log.Debug("object is ImpCurve");
+
                             //if mcd
                             yield return DescriptorForBorder(objectId);
                         }
@@ -56,41 +69,39 @@ namespace CSPDS
 
         private BorderDescriptor DescriptorForBorder(ObjectId objectId)
         {
-            try
+            _log.Debug("DescriptorForBorder");
+
+            IntPtr pUnknown = ObjectPropertyManagerPropertyUtility.GetIUnknownFromObjectId(objectId);
+            if (pUnknown != IntPtr.Zero)
             {
-                IntPtr pUnknown = ObjectPropertyManagerPropertyUtility.GetIUnknownFromObjectId(objectId);
-                if (pUnknown != IntPtr.Zero)
+                _log.Debug(String.Format("pUnknown :{0:X}",pUnknown));
+                using (CollectionVector properties =
+                    ObjectPropertyManagerProperties.GetProperties(objectId, false, false))
                 {
-                    using (CollectionVector properties =
-                        ObjectPropertyManagerProperties.GetProperties(objectId, false, false))
+                    if (properties.Count() > 0)
                     {
-                        if (properties.Count() > 0)
+                        using (CategoryCollectable category = properties.Item(0) as CategoryCollectable)
                         {
-                            using (CategoryCollectable category = properties.Item(0) as CategoryCollectable)
+                            CollectionVector props = category.Properties;
+                            Dictionary<String, PropertyCollectable> propByName =
+                                new Dictionary<string, PropertyCollectable>();
+                            for (int i = 0; i < props.Count(); ++i)
                             {
-                                CollectionVector props = category.Properties;
-                                Dictionary<String, PropertyCollectable> propByName =
-                                    new Dictionary<string, PropertyCollectable>();
-                                for (int i = 0; i < props.Count(); ++i)
+                                using (PropertyCollectable prop = props.Item(i) as PropertyCollectable)
                                 {
-                                    using (PropertyCollectable prop = props.Item(i) as PropertyCollectable)
+                                    if (prop != null)
                                     {
-                                        if (prop != null)
-                                        {
-                                            propByName.Add(prop.CollectableName.Trim(), prop);
-                                        }
+                                        _log.Debug(String.Format("property: {0} {1} {2}",prop.Name, prop.CollectableName, prop.DISP.ToString()));
+
+                                        propByName.Add(prop.CollectableName.Trim(), prop);
                                     }
                                 }
-
-                                return DescriptorFromProperties(propByName, pUnknown);
                             }
+
+                            return DescriptorFromProperties(propByName, pUnknown);
                         }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                return ForError(e.Message);
             }
 
             return ForError("Что-то пошло не так:формат не получилось вытащить");
@@ -109,20 +120,20 @@ namespace CSPDS
             string firstName1 = "Наименование2";
             string firstName2 = "Наименование3";
 
-            string format = GetPropValue(propByName[formatProp], pUnknown);
+            string format = GetPropValue(propByName, formatProp, pUnknown);
 
-            string lastName = ComposeName(GetPropValue(propByName[lastName0], pUnknown),
-                GetPropValue(propByName[lastName1], pUnknown),
-                GetPropValue(propByName[lastName2], pUnknown));
+            string lastName = ComposeName(GetPropValue(propByName, lastName0, pUnknown),
+                GetPropValue(propByName, lastName1, pUnknown),
+                GetPropValue(propByName, lastName2, pUnknown));
 
-            string firstName = ComposeName(GetPropValue(propByName[firstName0], pUnknown),
-                GetPropValue(propByName[firstName1], pUnknown),
-                GetPropValue(propByName[firstName2], pUnknown));
+            string firstName = ComposeName(GetPropValue(propByName, firstName0, pUnknown),
+                GetPropValue(propByName, firstName1, pUnknown),
+                GetPropValue(propByName, firstName2, pUnknown));
 
             int sheetCount = 0;
-            Int32.TryParse(GetPropValue(propByName[sheetCountProp], pUnknown), out sheetCount);
+            Int32.TryParse(GetPropValue(propByName, sheetCountProp, pUnknown), out sheetCount);
             int sheetNumber = 0;
-            Int32.TryParse(GetPropValue(propByName[sheetNumberProp], pUnknown), out sheetNumber);
+            Int32.TryParse(GetPropValue(propByName, sheetNumberProp, pUnknown), out sheetNumber);
 
             return new BorderDescriptor(firstName + " : " + lastName, format, sheetNumber, sheetCount);
         }
@@ -134,12 +145,21 @@ namespace CSPDS
                    sub2.Trim() + " ";
         }
 
-        private string GetPropValue(PropertyCollectable propertyCollectable, IntPtr pUnknown)
+        private string GetPropValue(Dictionary<string, PropertyCollectable> propByName, string propName, IntPtr pUnknown)
         {
-            object value = null;
-            if (propertyCollectable.GetValue(pUnknown, ref value) && value != null)
+            PropertyCollectable propertyCollectable = propByName[propName]; 
+
+            try
             {
-                return value.ToString();
+                object value = null;
+                if (propertyCollectable != null && propertyCollectable.GetValue(pUnknown, ref value) && value != null)
+                {
+                    return value.ToString();
+                }
+            }
+            catch (Exception exception)
+            {
+                return "Не нашел " + propertyCollectable is null ? "null":propertyCollectable.ToString();
             }
 
             return "";

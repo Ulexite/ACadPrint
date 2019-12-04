@@ -17,7 +17,6 @@ using Exception = Autodesk.AutoCAD.BoundaryRepresentation.Exception;
 
 namespace CSPDS
 {
-
     /// <summary>
     /// Данный класс содержит методы для непосредственной работы с AutoCAD
     /// </summary>
@@ -26,28 +25,37 @@ namespace CSPDS
         private static PaletteSet pallete;
         BorderEnumerator enumerator = new BorderEnumerator();
         BorderByFiles borders;
-        
-        [CommandMethod("ShowCPPPrinter")]
+
+        [CommandMethod("ShowCPP")]
         public void ShowPallete()
         {
-            if (pallete is null)
+            try
             {
-                pallete = new PaletteSet("Печать ЦПП");
-                borders= new BorderByFiles(enumerator.refreshBorderList(Application.DocumentManager));
-                ElementHost host = new ElementHost();
-                host.Dock = DockStyle.Fill;
-                host.Child = borders;
-                pallete.DockEnabled = (DockSides)((int)DockSides.Left + (int)DockSides.Right);
-                pallete.Add("Форматы по файлам", host);
+                if (pallete is null)
+                {
+                    pallete = new PaletteSet("Печать ЦПП");
+                    borders = new BorderByFiles(enumerator.refreshBorderList(Application.DocumentManager));
+                    ElementHost host = new ElementHost();
+                    host.Dock = DockStyle.Fill;
+                    host.Child = borders;
+                    pallete.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
+                    pallete.Add("Форматы по файлам", host);
+                }
+                else
+                {
+                    borders.tvrObjects.ItemsSource = enumerator.refreshBorderList(Application.DocumentManager);
+                }
+
                 pallete.KeepFocus = true;
                 pallete.Visible = true;
             }
-            else
+            catch (Exception e)
             {
-                enumerator.refreshBorderList(Application.DocumentManager);
+                var ed = Application.DocumentManager.CurrentDocument.Editor;
+                ed.WriteMessage(e.StackTrace);
             }
         }
-        
+
         [CommandMethod("showTest", CommandFlags.Modal | CommandFlags.NoPaperSpace | CommandFlags.UsePickSet)]
         public void ShowTestWindow()
         {
@@ -69,7 +77,7 @@ namespace CSPDS
             list = list + counter;
             Application.ShowAlertDialog(list);
         }
-        
+
 
         [CommandMethod("showallobjects", CommandFlags.Modal | CommandFlags.NoPaperSpace | CommandFlags.UsePickSet)]
         public void showAllObjects()
