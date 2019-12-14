@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Drawing;
+using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Internal.PropertyInspector;
 
 //Autodesk
 using Autodesk.AutoCAD.Runtime;
@@ -55,27 +58,67 @@ namespace CSPDS
                 ed.WriteMessage(e.StackTrace);
             }
         }
-
-        [CommandMethod("showTest", CommandFlags.Modal | CommandFlags.NoPaperSpace | CommandFlags.UsePickSet)]
-        public void ShowTestWindow()
+        
+        public static string AssemblyDirectory
         {
-            String list = "";
-            int counter = 0;
-
-            foreach (ObjectDescriptor objectDescriptor in AllDocumentsAllObjects.ListAllObjects())
+            get
             {
-                list += " \n" + objectDescriptor.FullName;
-                counter++;
-                if (counter >= 5)
-                {
-                    Application.ShowAlertDialog(list);
-                    counter = 0;
-                    list = "";
-                }
+                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
+                UriBuilder uri = new UriBuilder(codeBase);
+                string path = Uri.UnescapeDataString(uri.Path);
+                return Path.GetDirectoryName(path);
             }
+        }        
 
-            list = list + counter;
-            Application.ShowAlertDialog(list);
+        [CommandMethod("SHOWCUSTOMPROPS")]
+        public static void ListCustomProps()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+            PromptEntityOptions peo = new PromptEntityOptions("\nSelect object: ");
+            var res = ed.GetEntity(peo);
+            if (res.Status != PromptStatus.OK)
+                return;
+                        
+            using (System.IO.StreamWriter file =
+                new System.IO.StreamWriter(AssemblyDirectory+@"\customProprs.log", false))
+            {
+                file.WriteLine(String.Format("object id: {0:X}",res.ObjectId));
+                IntPtr pUnknown = ObjectPropertyManagerPropertyUtility.GetIUnknownFromObjectId(res.ObjectId);
+                file.WriteLine(String.Format("pUnknown :{0:X}", pUnknown));
+                if (pUnknown != IntPtr.Zero)
+                {
+                    using (CollectionVector properties = ObjectPropertyManagerProperties.GetProperties(res.ObjectId, false, false))
+                    {
+                        file.WriteLine(properties.Count());
+                        if (properties.Count() != 0)
+                        {
+                            using (CategoryCollectable category = properties.Item(0) as CategoryCollectable)
+                            {
+                                CollectionVector props = category.Properties;
+                                for (int i = 0; i < props.Count(); ++i)
+                                {
+                                    using (PropertyCollectable prop = props.Item(i) as PropertyCollectable)
+                                    {
+                                        if (prop != null)
+                                        {
+                                            object value = null;
+                                            if (prop.GetValue(pUnknown, ref value) && value != null)
+                                            {
+                                                
+                                                file.WriteLine(string.Format("{4} {3} {2}  {0}={1}", prop.Name, value, prop.Description, prop.CollectableName, prop.DISP));
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                            }
+                            
+                        }
+                    }
+                }
+                
+            }
         }
 
 

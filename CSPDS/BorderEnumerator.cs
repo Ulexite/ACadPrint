@@ -1,17 +1,29 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Reflection;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Internal.PropertyInspector;
+using log4net;
 
 namespace CSPDS
 {
     public class BorderEnumerator
     {
-        private static readonly log4net.ILog _log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        
+        private const string sheetCountProp = "Листов";
+        private const string sheetNumberProp = "Лист";
+        private const string formatProp = "Формат";
+        private const string lastName0 = "Наименование чертежа";
+        private const string lastName1 = "Наименование чертежа 1";
+        private const string lastName2 = "Наименование чертежа 2";
+        private const string firstName0 = "Наименование1";
+        private const string firstName1 = "Наименование2";
+        private const string firstName2 = "Наименование3";
+
+        private static readonly ILog _log =
+            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         private ObservableCollection<FileDescriptor> files = new ObservableCollection<FileDescriptor>();
         private Dictionary<string, FileDescriptor> fullFileNames = new Dictionary<string, FileDescriptor>();
 
@@ -20,15 +32,15 @@ namespace CSPDS
             _log.Debug("started");
             fullFileNames.Clear();
             files.Clear();
-            
+
             foreach (Document document in Application.DocumentManager)
             {
                 string name = document.Name;
-                _log.Debug(String.Format("for document: {0}",name));
+                _log.Debug(String.Format("for document: {0}", name));
 
                 if (!document.IsNamedDrawing)
                     name = "*" + name;
-                
+
                 FileDescriptor descriptor = GetDescriptorFor(name);
                 foreach (BorderDescriptor border in BordersInDocument(document))
                 {
@@ -51,16 +63,16 @@ namespace CSPDS
 
                     foreach (ObjectId objectId in record)
                     {
-                        _log.Debug(String.Format("for objectId: {0:X}",objectId));
+                        _log.Debug(String.Format("for objectId: {0:X}", objectId));
 
                         var obj = tr.GetObject(objectId, OpenMode.ForRead);
-                        
+
                         if (obj.GetType().FullName.Equals("Autodesk.AutoCAD.DatabaseServices.ImpCurve"))
                         {
                             _log.Debug("object is ImpCurve");
 
                             //if mcd
-                            yield return DescriptorForBorder(objectId);
+                            yield return DescriptorForBorder(obj.ObjectId);
                         }
                     }
                 }
@@ -70,11 +82,25 @@ namespace CSPDS
         private BorderDescriptor DescriptorForBorder(ObjectId objectId)
         {
             _log.Debug("DescriptorForBorder");
+            _log.Debug(String.Format("Objectid is: {0:X}", objectId));
+            Dictionary<string, string> propByName =
+                new Dictionary<string, string>()
+                {
+                    {formatProp, ""},
+                    {sheetCountProp, ""},
+                    {sheetNumberProp, ""},
+                    {firstName0, ""},
+                    {firstName1, ""},
+                    {firstName2, ""},
+                    {lastName0, ""},
+                    {lastName1, ""},
+                    {lastName2, ""}
+                };
 
             IntPtr pUnknown = ObjectPropertyManagerPropertyUtility.GetIUnknownFromObjectId(objectId);
+            _log.Debug(String.Format("pUnknown :{0:X}", pUnknown));
             if (pUnknown != IntPtr.Zero)
             {
-                _log.Debug(String.Format("pUnknown :{0:X}",pUnknown));
                 using (CollectionVector properties =
                     ObjectPropertyManagerProperties.GetProperties(objectId, false, false))
                 {
@@ -83,22 +109,24 @@ namespace CSPDS
                         using (CategoryCollectable category = properties.Item(0) as CategoryCollectable)
                         {
                             CollectionVector props = category.Properties;
-                            Dictionary<String, PropertyCollectable> propByName =
-                                new Dictionary<string, PropertyCollectable>();
-                            for (int i = 0; i < props.Count(); ++i)
+
+                            for (var i = 0; i < props.Count(); ++i)
                             {
                                 using (PropertyCollectable prop = props.Item(i) as PropertyCollectable)
                                 {
                                     if (prop != null)
                                     {
-                                        _log.Debug(String.Format("property: {0} {1} {2}",prop.Name, prop.CollectableName, prop.DISP.ToString()));
+                                        _log.Debug(String.Format("property: {0} {1}", prop.Name,
+                                            prop.CollectableName));
 
-                                        propByName.Add(prop.CollectableName.Trim(), prop);
+                                        if (propByName.ContainsKey(prop.CollectableName.Trim()))
+                                            propByName[prop.CollectableName.Trim()] =
+                                                GetPropValue(prop, prop.CollectableName, pUnknown);
                                     }
                                 }
                             }
 
-                            return DescriptorFromProperties(propByName, pUnknown);
+                            return DescriptorFromProperties(propByName);
                         }
                     }
                 }
@@ -107,33 +135,18 @@ namespace CSPDS
             return ForError("Что-то пошло не так:формат не получилось вытащить");
         }
 
-        private BorderDescriptor DescriptorFromProperties(Dictionary<string, PropertyCollectable> propByName,
-            IntPtr pUnknown)
+        private BorderDescriptor DescriptorFromProperties(Dictionary<string, string> propByName)
         {
-            string sheetCountProp = "Листов";
-            string sheetNumberProp = "Лист";
-            string formatProp = "Формат";
-            string lastName0 = "Наименование чертежа";
-            string lastName1 = "Наименование чертежа 1";
-            string lastName2 = "Наименование чертежа 2";
-            string firstName0 = "Наименование1";
-            string firstName1 = "Наименование2";
-            string firstName2 = "Наименование3";
+            string format = propByName[formatProp];
 
-            string format = GetPropValue(propByName, formatProp, pUnknown);
+            string lastName = ComposeName(propByName[lastName0], propByName[lastName1], propByName[lastName2]);
+            string firstName = ComposeName(propByName[firstName0], propByName[firstName1], propByName[firstName2]);
 
-            string lastName = ComposeName(GetPropValue(propByName, lastName0, pUnknown),
-                GetPropValue(propByName, lastName1, pUnknown),
-                GetPropValue(propByName, lastName2, pUnknown));
-
-            string firstName = ComposeName(GetPropValue(propByName, firstName0, pUnknown),
-                GetPropValue(propByName, firstName1, pUnknown),
-                GetPropValue(propByName, firstName2, pUnknown));
 
             int sheetCount = 0;
-            Int32.TryParse(GetPropValue(propByName, sheetCountProp, pUnknown), out sheetCount);
+            Int32.TryParse(propByName[sheetCountProp], out sheetCount);
             int sheetNumber = 0;
-            Int32.TryParse(GetPropValue(propByName, sheetNumberProp, pUnknown), out sheetNumber);
+            Int32.TryParse(propByName[sheetNumberProp], out sheetNumber);
 
             return new BorderDescriptor(firstName + " : " + lastName, format, sheetNumber, sheetCount);
         }
@@ -145,21 +158,22 @@ namespace CSPDS
                    sub2.Trim() + " ";
         }
 
-        private string GetPropValue(Dictionary<string, PropertyCollectable> propByName, string propName, IntPtr pUnknown)
+        private string GetPropValue(PropertyCollectable propertyCollectable, string propName,
+            IntPtr pUnknown)
         {
-            PropertyCollectable propertyCollectable = propByName[propName]; 
-
             try
             {
+                _log.Debug(string.Format("Читаем свойство {0} - {1}", propName, propertyCollectable));
                 object value = null;
                 if (propertyCollectable != null && propertyCollectable.GetValue(pUnknown, ref value) && value != null)
                 {
+                    _log.Debug(string.Format("Прочитали: {0}", value));
                     return value.ToString();
                 }
             }
             catch (Exception exception)
             {
-                return "Не нашел " + propertyCollectable is null ? "null":propertyCollectable.ToString();
+                _log.Error(string.Format("Не смогли прочитать "), exception);
             }
 
             return "";
