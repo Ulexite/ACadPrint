@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
 using System.Reflection;
@@ -13,6 +14,7 @@ using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.Windows;
 using CSPDS.AllObjectsTreeView;
 using CSPDS.Views;
+using log4net;
 using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using Exception = Autodesk.AutoCAD.BoundaryRepresentation.Exception;
 
@@ -26,6 +28,10 @@ namespace CSPDS
     public class CommandClass
     {
         private static PaletteSet pallete;
+        private static ObservableCollection<FileDescriptor> fileDescriptors;
+        private static readonly ILog _log =
+            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        
         BorderEnumerator enumerator = new BorderEnumerator();
         BorderByFiles borders;
 
@@ -36,17 +42,36 @@ namespace CSPDS
             {
                 if (pallete is null)
                 {
+                    _log.Debug("Подготовка панели");
                     pallete = new PaletteSet("Печать ЦПП");
-                    borders = new BorderByFiles(enumerator.refreshBorderList(Application.DocumentManager));
+                    _log.Debug("Готовим TreeView");
+                    fileDescriptors=enumerator.refreshBorderList(Application.DocumentManager);
+                    borders = new BorderByFiles(fileDescriptors);
+                    _log.Debug("Готовим ElementHost");
                     ElementHost host = new ElementHost();
                     host.Dock = DockStyle.Fill;
                     host.Child = borders;
                     pallete.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
+                    _log.Debug("Соединяем");
                     pallete.Add("Форматы по файлам", host);
                 }
                 else
                 {
-                    borders.tvrObjects.ItemsSource = enumerator.refreshBorderList(Application.DocumentManager);
+                    _log.Debug("Обновить список");
+                    enumerator.refreshBorderList(Application.DocumentManager);
+                    try
+                    {
+                        _log.Debug("Обновить TreeView");
+
+                        borders.tvrObjects.Items.Refresh();
+                    }
+                    catch (Exception exception)
+                    {
+                        _log.Error("Не обновили",exception);
+                    }
+
+                    _log.Debug("Обновить TreeView UpdateLayout");
+                    borders.tvrObjects.UpdateLayout();
                 }
 
                 pallete.KeepFocus = true;

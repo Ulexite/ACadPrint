@@ -30,20 +30,16 @@ namespace CSPDS
         public ObservableCollection<FileDescriptor> refreshBorderList(DocumentCollection documents)
         {
             _log.Debug("started");
-            fullFileNames.Clear();
-            files.Clear();
 
             foreach (Document document in Application.DocumentManager)
             {
                 string name = document.Name;
                 _log.Debug(String.Format("for document: {0}", name));
 
-                if (!document.IsNamedDrawing)
-                    name = "*" + name;
-
                 FileDescriptor descriptor = GetDescriptorFor(name);
                 foreach (BorderDescriptor border in BordersInDocument(document))
                 {
+                    //TODO: Border uniq id
                     descriptor.Borders.Add(border);
                 }
             }
@@ -53,9 +49,12 @@ namespace CSPDS
 
         private IEnumerable<BorderDescriptor> BordersInDocument(Document document)
         {
+            _log.Debug("Document search start");
             var db = document.Database;
+            _log.Debug("Transaction start");
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
+                _log.Debug("BlockTable aquire");
                 BlockTable blockTable = (BlockTable) tr.GetObject(db.BlockTableId, OpenMode.ForRead);
                 foreach (ObjectId recordId in blockTable)
                 {
