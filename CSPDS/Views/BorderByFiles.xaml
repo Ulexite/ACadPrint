@@ -10,19 +10,20 @@
     <Grid Margin="10">
         <TreeView Name="tvrObjects">
             <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type source:FileDescriptor}" ItemsSource="{Binding Borders}">
+                <HierarchicalDataTemplate DataType="{x:Type source:FileDescriptor}" ItemsSource="{Binding Sheets}">
                     <TextBlock Text="{Binding Name}" />
                 </HierarchicalDataTemplate>
-                <DataTemplate DataType="{x:Type source:BorderDescriptor}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding SheetNumber}" Foreground="Yellow" />
-                        <TextBlock Text="/" />
-                        <TextBlock Text="{Binding SheetCount}" Foreground="Yellow"/>
-                        <TextBlock Text=" :" />
-                        <TextBlock Text="{Binding Name}" />
-                        <TextBlock Text=" (" Foreground="Green" />
-                        <TextBlock Text="{Binding Format}" Foreground="Green" />
-                        <TextBlock Text=")" Foreground="Green" />
+                <DataTemplate DataType="{x:Type source:SheetDescriptor}">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock >
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Лист {0} из {1}">
+                                    <Binding Path="Properties[Лист]" />
+                                    <Binding Path="Properties[Листов]" />
+                                </MultiBinding>                                
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Path=Properties[Формат]}"/>
                     </StackPanel>
                 </DataTemplate>
             </TreeView.Resources>

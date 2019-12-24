@@ -129,7 +129,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AllDocumentsAllObjects.cs" />
-    <Compile Include="BorderEnumerator.cs" />
+    <Compile Include="SheetCollector.cs" />
     <Compile Include="CommandClass.cs" />
     <Compile Include="Initializator.cs" />
     <Compile Include="PrintManager.cs" />

@@ -26,7 +26,7 @@ namespace CSPDS
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public void PdfAll(FileDescriptor file)
+/*        public void PdfAll(FileDescriptor file)
         {
             _log.DebugFormat("PdfAll {0}", file.Name);
             if (PlotFactory.ProcessPlotState == ProcessPlotState.NotPlotting)
@@ -37,7 +37,7 @@ namespace CSPDS
                 {
                     using (PlotEngine plotEngine = PlotFactory.CreatePublishEngine())
                     {
-                        using (PlotProgressDialog dialog = new PlotProgressDialog(false, file.Borders.Count, true))
+                        using (PlotProgressDialog dialog = new PlotProgressDialog(false, file.Sheets.Count, true))
                         {
                             _log.Debug("Init Dialog");
 
@@ -52,9 +52,9 @@ namespace CSPDS
                             plotEngine.BeginPlot(dialog, null);
 
 
-                            int count = file.Borders.Count;
+                            int count = file.Sheets.Count;
                             bool isFirst = true;
-                            foreach (BorderDescriptor border in file.Borders)
+                            foreach (SheetDescriptor border in file.Sheets)
                             {
                                 count--;
                                 _log.DebugFormat("Border Num {0}", count);
@@ -121,11 +121,11 @@ namespace CSPDS
                 }
             }
         }
-
-        private Extents2d WindowFrom(BorderDescriptor border, Database db, Transaction tr)
+*/
+        private Extents2d WindowFrom(SheetDescriptor sheet, Database db, Transaction tr)
         {
             _log.Debug("Try to take window");
-            Curve curve = (Curve) tr.GetObject(border.BorderEntity, OpenMode.ForRead);
+            Curve curve = (Curve) tr.GetObject(sheet.BorderEntity, OpenMode.ForRead);
             _log.Debug("Take bounds");
             Extents3d bounds = curve.Bounds.Value;
             _log.Debug("Take points");
@@ -154,9 +154,9 @@ namespace CSPDS
             return ret;
         }
 
-        private PlotSettings PlotSettingsFor(BorderDescriptor border, Database db, Transaction tr)
+        private PlotSettings PlotSettingsFor(SheetDescriptor sheet, Database db, Transaction tr)
         {
-            _log.DebugFormat("Get plot settings for {0}", border.Format);
+            _log.DebugFormat("Get plot settings for {0}", sheet.Format);
 
             DBDictionary  settingsDict =
             (DBDictionary) tr.GetObject(db.PlotSettingsDictionaryId, OpenMode.ForRead);
