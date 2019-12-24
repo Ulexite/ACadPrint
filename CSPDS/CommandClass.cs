@@ -29,9 +29,10 @@ namespace CSPDS
     {
         private static PaletteSet pallete;
         private static ObservableCollection<FileDescriptor> fileDescriptors;
+
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        
+
         BorderEnumerator enumerator = new BorderEnumerator();
         BorderByFiles borders;
 
@@ -45,7 +46,7 @@ namespace CSPDS
                     _log.Debug("Подготовка панели");
                     pallete = new PaletteSet("Печать ЦПП");
                     _log.Debug("Готовим TreeView");
-                    fileDescriptors=enumerator.refreshBorderList(Application.DocumentManager);
+                    fileDescriptors = enumerator.refreshBorderList(Application.DocumentManager);
                     borders = new BorderByFiles(fileDescriptors);
                     _log.Debug("Готовим ElementHost");
                     ElementHost host = new ElementHost();
@@ -67,7 +68,7 @@ namespace CSPDS
                     }
                     catch (Exception exception)
                     {
-                        _log.Error("Не обновили",exception);
+                        _log.Error("Не обновили", exception);
                     }
 
                     _log.Debug("Обновить TreeView UpdateLayout");
@@ -83,7 +84,7 @@ namespace CSPDS
                 ed.WriteMessage(e.StackTrace);
             }
         }
-        
+
         public static string AssemblyDirectory
         {
             get
@@ -93,7 +94,15 @@ namespace CSPDS
                 string path = Uri.UnescapeDataString(uri.Path);
                 return Path.GetDirectoryName(path);
             }
-        }        
+        }
+
+        [CommandMethod("CPPPDF")]
+        public void CreatePdf()
+        {
+            fileDescriptors = enumerator.refreshBorderList(Application.DocumentManager);
+            PrintManager pm = new PrintManager();
+            pm.PdfAll(fileDescriptors[0]);
+        }
 
         [CommandMethod("SHOWCUSTOMPROPS")]
         public static void ListCustomProps()
@@ -104,16 +113,17 @@ namespace CSPDS
             var res = ed.GetEntity(peo);
             if (res.Status != PromptStatus.OK)
                 return;
-                        
+
             using (System.IO.StreamWriter file =
-                new System.IO.StreamWriter(AssemblyDirectory+@"\customProprs.log", false))
+                new System.IO.StreamWriter(AssemblyDirectory + @"\customProprs.log", false))
             {
-                file.WriteLine(String.Format("object id: {0:X}",res.ObjectId));
+                file.WriteLine(String.Format("object id: {0:X}", res.ObjectId));
                 IntPtr pUnknown = ObjectPropertyManagerPropertyUtility.GetIUnknownFromObjectId(res.ObjectId);
                 file.WriteLine(String.Format("pUnknown :{0:X}", pUnknown));
                 if (pUnknown != IntPtr.Zero)
                 {
-                    using (CollectionVector properties = ObjectPropertyManagerProperties.GetProperties(res.ObjectId, false, false))
+                    using (CollectionVector properties =
+                        ObjectPropertyManagerProperties.GetProperties(res.ObjectId, false, false))
                     {
                         file.WriteLine(properties.Count());
                         if (properties.Count() != 0)
@@ -130,19 +140,16 @@ namespace CSPDS
                                             object value = null;
                                             if (prop.GetValue(pUnknown, ref value) && value != null)
                                             {
-                                                
-                                                file.WriteLine(string.Format("{4} {3} {2}  {0}={1}", prop.Name, value, prop.Description, prop.CollectableName, prop.DISP));
+                                                file.WriteLine(string.Format("{4} {3} {2}  {0}={1}", prop.Name, value,
+                                                    prop.Description, prop.CollectableName, prop.DISP));
                                             }
                                         }
                                     }
                                 }
-                                
                             }
-                            
                         }
                     }
                 }
-                
             }
         }
 

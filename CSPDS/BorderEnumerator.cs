@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Reflection;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -36,7 +37,7 @@ namespace CSPDS
                 string name = document.Name;
                 _log.Debug(String.Format("for document: {0}", name));
 
-                FileDescriptor descriptor = GetDescriptorFor(name);
+                FileDescriptor descriptor = GetDescriptorFor(document);
                 foreach (BorderDescriptor border in BordersInDocument(document))
                 {
                     //TODO: Border uniq id
@@ -125,7 +126,7 @@ namespace CSPDS
                                 }
                             }
 
-                            return DescriptorFromProperties(propByName);
+                            return DescriptorFromProperties(propByName, objectId);
                         }
                     }
                 }
@@ -134,7 +135,7 @@ namespace CSPDS
             return ForError("Что-то пошло не так:формат не получилось вытащить");
         }
 
-        private BorderDescriptor DescriptorFromProperties(Dictionary<string, string> propByName)
+        private BorderDescriptor DescriptorFromProperties(Dictionary<string, string> propByName, ObjectId objectId)
         {
             string format = propByName[formatProp];
 
@@ -147,7 +148,7 @@ namespace CSPDS
             int sheetNumber = 0;
             Int32.TryParse(propByName[sheetNumberProp], out sheetNumber);
 
-            return new BorderDescriptor(firstName + " : " + lastName, format, sheetNumber, sheetCount);
+            return new BorderDescriptor(firstName + " : " + lastName, format, sheetNumber, sheetCount, objectId);
         }
 
         private string ComposeName(string sub0, string sub1, string sub2)
@@ -184,12 +185,13 @@ namespace CSPDS
         }
 
 
-        private FileDescriptor GetDescriptorFor(string fullFileName)
+        private FileDescriptor GetDescriptorFor(Document document)
         {
+            String fullFileName = document.Name;
             if (fullFileNames.ContainsKey(fullFileName))
                 return fullFileNames[fullFileName];
 
-            FileDescriptor fd = new FileDescriptor(fullFileName);
+            FileDescriptor fd = new FileDescriptor(fullFileName, document.Database);
             files.Add(fd);
             fullFileNames.Add(fullFileName, fd);
             return fd;
@@ -199,14 +201,19 @@ namespace CSPDS
     public class FileDescriptor
     {
         private string name;
+        private Database db;
+
         private ObservableCollection<BorderDescriptor> borders = new ObservableCollection<BorderDescriptor>();
 
         public string Name => name;
 
+        public Database Db => db;
+
         public ObservableCollection<BorderDescriptor> Borders => borders;
 
-        public FileDescriptor(string name)
+        public FileDescriptor(string name, Database db)
         {
+            this.db = db;
             this.name = name;
         }
     }
@@ -229,18 +236,22 @@ namespace CSPDS
 
         //Последний раз печаталось.
 
+        private ObjectId borderEntity;
         public string Name => name;
 
         public string Format => format;
         public int SheetCount => sheetCount;
         public int SheetNumber => sheetNumber;
+        public ObjectId BorderEntity => borderEntity;
 
-        public BorderDescriptor(string format, string name, int sheetNumber, int sheetCount)
+
+        public BorderDescriptor(string format, string name, int sheetNumber, int sheetCount, ObjectId borderEntity)
         {
             this.format = format;
             this.name = name;
             this.sheetNumber = sheetNumber;
             this.sheetCount = sheetCount;
+            this.borderEntity = borderEntity;
         }
 
         public BorderDescriptor(string name)
@@ -249,6 +260,7 @@ namespace CSPDS
             this.format = "";
             this.sheetCount = 0;
             this.sheetNumber = 0;
+            this.borderEntity = ObjectId.Null;
         }
     }
 }
