@@ -37,12 +37,14 @@ namespace CSPDS
                 if (mainPalette is null)
                 {
                     mainPalette = new PaletteSet("Менеджер печати ЦПП");
+                    
                     var byFiles = new BorderByFiles(sheetCollector.ByFiles);
                     //var byFormats = new BorderByFiles(sheetCollector.ByFormats);
 
                     ElementHost host = new ElementHost();
                     host.Dock = DockStyle.Fill;
                     host.Child = byFiles;
+                    host.AutoSize = true;
                     mainPalette.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
                     mainPalette.Add("Листы", host);
                  //   mainPalette.Add("По форматам", host);

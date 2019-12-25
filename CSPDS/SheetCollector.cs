@@ -47,7 +47,7 @@ namespace CSPDS
             AddFrom(documents);
         }
 
-        private void AddFrom(Dictionary<string, Database> documents)
+        private void AddFrom(Dictionary<string, Document> documents)
         {
             _log.Debug("Process opened documents");
             foreach (string name in documents.Keys)
@@ -83,7 +83,7 @@ namespace CSPDS
             return ret;
         }
 
-        private void RemoveClosed(Dictionary<string, Database> documents)
+        private void RemoveClosed(Dictionary<string, Document> documents)
         {
             _log.Debug("Remove closed");
             List<FileDescriptor> toRemove = new List<FileDescriptor>();
@@ -101,13 +101,13 @@ namespace CSPDS
             }
         }
 
-        private Dictionary<string, Database> Documents(DocumentCollection documentCollection)
+        private Dictionary<string, Document> Documents(DocumentCollection documentCollection)
         {
             _log.Debug("Collect Documents");
-            Dictionary<string, Database> documents = new Dictionary<string, Database>();
+            Dictionary<string, Document> documents = new Dictionary<string, Document>();
             foreach (Document document in documentCollection)
             {
-                documents.Add(document.Name, document.Database);
+                documents.Add(document.Name, document);
             }
 
             return documents;
@@ -127,7 +127,7 @@ namespace CSPDS
         private IEnumerable<SheetDescriptor> SheetsFromDocument(FileDescriptor document)
         {
             _log.DebugFormat("Start sheet extrating from {0}", document.Name);
-            var db = document.Db;
+            var db = document.Document.Database;
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 _log.Debug("Transaction start");
@@ -147,7 +147,7 @@ namespace CSPDS
                             var properties = PropsFromObjectId(obj.ObjectId);
                             var excepted = minimumProps.Except(properties.Keys);
                             if(!minimumProps.Except(properties.Keys).Any())
-                                yield return new SheetDescriptor(objectId, db, properties);
+                                yield return new SheetDescriptor(objectId, db, document, properties);
                             else
                             {
                                 _log.Debug("Отсутствуют обязательные свойства");
@@ -223,7 +223,7 @@ namespace CSPDS
             return "";
         }
 
-        private FileDescriptor DescriptorFor(string Name, Database db)
+        private FileDescriptor DescriptorFor(string Name, Document db)
         {
             String fullFileName = Name;
             if (fullFileNames.ContainsKey(fullFileName))
@@ -239,19 +239,26 @@ namespace CSPDS
     public class FileDescriptor : INotifyPropertyChanged
     {
         private string name;
-        private Database db;
-
+        private Document document;
+        private bool isChecked;
+        
         private ObservableCollection<SheetDescriptor> sheets = new ObservableCollection<SheetDescriptor>();
 
         public string Name => name;
 
-        public Database Db => db;
+        public Document Document => document;
 
         public ObservableCollection<SheetDescriptor> Sheets => sheets;
 
-        public FileDescriptor(string name, Database db)
+        public bool IsChecked
         {
-            this.db = db;
+            get => isChecked;
+            set => isChecked = value;
+        }
+
+        public FileDescriptor(string name, Document document)
+        {
+            this.document = document;
             this.name = name;
         }
 
@@ -280,7 +287,8 @@ namespace CSPDS
         private Dictionary<string, string> properties;
         private ObjectId borderEntity;
         private Database db;
-
+        private FileDescriptor file;
+        private bool isChecked;
         private string uniqId;
         private string format;
 
@@ -290,11 +298,20 @@ namespace CSPDS
         public string UniqId => uniqId;
         public string Format => format;
 
-        public SheetDescriptor(ObjectId borderEntity, Database db, Dictionary<string, string> properties)
+        public FileDescriptor File => file;
+
+        public bool IsChecked
+        {
+            get => isChecked;
+            set => isChecked = value;
+        }
+
+        public SheetDescriptor(ObjectId borderEntity, Database db, FileDescriptor file,Dictionary<string, string> properties)
         {
             this.borderEntity = borderEntity;
             this.db = db;
             this.properties = properties;
+            this.file = file;
             uniqId = String.Format("{0:X}", borderEntity);
             format = properties["Формат"];
         }
