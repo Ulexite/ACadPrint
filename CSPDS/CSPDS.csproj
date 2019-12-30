@@ -157,12 +157,26 @@
       <DependentUpon>BorderByFiles.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Views\FormatPlotSettings.xaml.cs">
+      <DependentUpon>FormatPlotSettings.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Views\PlotSettingsList.xaml.cs">
+      <DependentUpon>PlotSettingsList.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Page Include="AllObjectsTreeView\AllObjectsTreeView.xaml" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="Views\BorderByFiles.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Views\FormatPlotSettings.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Views\PlotSettingsList.xaml" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\CmdOptions.resx">

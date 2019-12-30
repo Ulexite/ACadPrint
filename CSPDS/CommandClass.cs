@@ -37,17 +37,31 @@ namespace CSPDS
                 if (mainPalette is null)
                 {
                     mainPalette = new PaletteSet("Менеджер печати ЦПП");
+                    mainPalette.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
                     
                     var byFiles = new BorderByFiles(sheetCollector.ByFiles);
                     //var byFormats = new BorderByFiles(sheetCollector.ByFormats);
+                    var formatSettings = new FormatPlotSettings(sheetCollector.Formats);
+                    var settingsList = new PlotSettingsList(sheetCollector.Settings);
 
-                    ElementHost host = new ElementHost();
-                    host.Dock = DockStyle.Fill;
-                    host.Child = byFiles;
-                    host.AutoSize = true;
-                    mainPalette.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
-                    mainPalette.Add("Листы", host);
-                 //   mainPalette.Add("По форматам", host);
+                    ElementHost filesHost = new ElementHost();
+                    filesHost.Dock = DockStyle.Fill;
+                    filesHost.Child = byFiles;
+                    filesHost.AutoSize = true;
+                    
+                    ElementHost formatsHost = new ElementHost();
+                    formatsHost.Dock = DockStyle.Fill;
+                    formatsHost.Child = formatSettings;
+                    formatsHost.AutoSize = true;
+                    
+                    ElementHost settingsHost = new ElementHost();
+                    settingsHost.Dock = DockStyle.Fill;
+                    settingsHost.Child = settingsList;
+                    settingsHost.AutoSize = true;
+                    
+                    mainPalette.Add("Листы", filesHost);
+                    mainPalette.Add("Настройки по форматам", formatsHost);
+                    mainPalette.Add("Настройки", settingsHost);
                 }
 
                 mainPalette.KeepFocus = true;

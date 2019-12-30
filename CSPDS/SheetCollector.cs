@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -32,29 +33,48 @@ namespace CSPDS
 
         // Листы по файлам
         private ObservableCollection<FileDescriptor> files = new ObservableCollection<FileDescriptor>();
+        private ObservableCollection<FormatDescriptor> formats = new ObservableCollection<FormatDescriptor>();
 
-        private Dictionary<string, FileDescriptor> fullFileNames = new Dictionary<string, FileDescriptor>();
+        private ObservableCollection<PlotSettingsDescriptor> settings =
+            new ObservableCollection<PlotSettingsDescriptor>();
+
+        private Dictionary<string, FileDescriptor> fileByName = new Dictionary<string, FileDescriptor>();
+        private Dictionary<string, FormatDescriptor> formatByName = new Dictionary<string, FormatDescriptor>();
+
+        private Dictionary<string, PlotSettingsDescriptor> settingsByName =
+            new Dictionary<string, PlotSettingsDescriptor>();
+
+        public ObservableCollection<FormatDescriptor> Formats => formats;
+
         public ObservableCollection<FileDescriptor> ByFiles => files;
+
+        public ObservableCollection<PlotSettingsDescriptor> Settings => settings;
 
         public void Refresh(DocumentCollection documentCollection)
         {
-            _log.Debug("Refresh Started");
-
-            var documents = Documents(documentCollection);
-
-            RemoveClosed(documents);
-
-            AddFrom(documents);
+            try
+            {
+                _log.Debug("Refresh Started");
+                var documents = Documents(documentCollection);
+                RemoveClosed(documents);
+                ExtractFrom(documents);
+            }
+            catch (Exception e)
+            {
+                _log.Error(e);
+            }
         }
 
-        private void AddFrom(Dictionary<string, Document> documents)
+        private void ExtractFrom(Dictionary<string, Document> documents)
         {
             _log.Debug("Process opened documents");
             foreach (string name in documents.Keys)
             {
                 FileDescriptor fd = DescriptorFor(name, documents[name]);
+
                 Dictionary<string, SheetDescriptor> newSheets = Sheets(fd);
                 Dictionary<string, SheetDescriptor> oldSheets = OldSheets(fd);
+                PlotSettingsFrom(fd);
 
                 foreach (string uniqId in oldSheets.Keys)
                 {
@@ -66,10 +86,41 @@ namespace CSPDS
 
                 foreach (string uniqId in newSheets.Keys)
                 {
+                    FormatDescriptor format = FormatDescriptorFor(newSheets[uniqId].Format);
+
                     if (!oldSheets.ContainsKey(uniqId))
                         fd.Add(newSheets[uniqId]);
                 }
             }
+        }
+
+        private void PlotSettingsFrom(FileDescriptor fd)
+        {
+            _log.DebugFormat("Plot settings from {0}", fd.Name);
+            Database db = fd.Document.Database;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                DBDictionary settingsDict = (DBDictionary) tr.GetObject(db.PlotSettingsDictionaryId, OpenMode.ForRead);
+                foreach (string key in ((IDictionary) settingsDict).Keys)
+                {
+                    _log.DebugFormat("Plot settings {0}", key);
+                    PlotSettingsFrom(fd, settingsDict, tr, key);
+                }
+            }
+        }
+
+        private PlotSettingsDescriptor PlotSettingsFrom(FileDescriptor fd, DBDictionary settingsDict, Transaction tr, string key)
+        {
+            if (settingsByName.ContainsKey(key))
+                return settingsByName[key];
+
+            PlotSettings set = new PlotSettings(true);
+            set.CopyFrom(tr.GetObject((ObjectId) settingsDict.GetAt("1_@PlotSPDSModel"), OpenMode.ForRead));
+            
+            PlotSettingsDescriptor ret = new PlotSettingsDescriptor(key, fd, set.PlotPaperSize.ToString(), set.PlotConfigurationName);
+            settingsByName.Add(key, ret);
+            settings.Add(ret);
+            return ret;
         }
 
         private Dictionary<string, SheetDescriptor> OldSheets(FileDescriptor fd)
@@ -95,9 +146,9 @@ namespace CSPDS
 
             foreach (FileDescriptor file in toRemove)
             {
-                _log.DebugFormat("Remove {0}", file.Name);
+                _log.InfoFormat("Closed: {0}", file.Name);
                 files.Remove(file);
-                fullFileNames.Remove(file.Name);
+                fileByName.Remove(file.Name);
             }
         }
 
@@ -137,7 +188,7 @@ namespace CSPDS
                 {
                     BlockTableRecord record = (BlockTableRecord) tr.GetObject(recordId, OpenMode.ForRead);
                     _log.DebugFormat("BTRecord: {0}", record.Name);
-                    
+
                     foreach (ObjectId objectId in record)
                     {
                         var obj = tr.GetObject(objectId, OpenMode.ForRead);
@@ -146,17 +197,16 @@ namespace CSPDS
                         {
                             var properties = PropsFromObjectId(obj.ObjectId);
                             var excepted = minimumProps.Except(properties.Keys);
-                            if(!minimumProps.Except(properties.Keys).Any())
+                            if (!minimumProps.Except(properties.Keys).Any())
                                 yield return new SheetDescriptor(objectId, db, document, properties);
                             else
                             {
                                 _log.Debug("Отсутствуют обязательные свойства");
                                 foreach (var pr in excepted)
                                 {
-                                    _log.DebugFormat("Пропущено: {0}",pr);                                                                        
+                                    _log.DebugFormat("Пропущено: {0}", pr);
                                 }
                             }
-                                
                         }
                     }
                 }
@@ -226,13 +276,74 @@ namespace CSPDS
         private FileDescriptor DescriptorFor(string Name, Document db)
         {
             String fullFileName = Name;
-            if (fullFileNames.ContainsKey(fullFileName))
-                return fullFileNames[fullFileName];
+            if (fileByName.ContainsKey(fullFileName))
+                return fileByName[fullFileName];
 
             FileDescriptor fd = new FileDescriptor(fullFileName, db);
             files.Add(fd);
-            fullFileNames.Add(fullFileName, fd);
+            fileByName.Add(fullFileName, fd);
             return fd;
+        }
+
+        private FormatDescriptor FormatDescriptorFor(String name)
+        {
+            if (formatByName.ContainsKey(name))
+                return formatByName[name];
+
+            FormatDescriptor fd = new FormatDescriptor(name);
+            formats.Add(fd);
+            formatByName.Add(name, fd);
+            return fd;
+        }
+    }
+
+    public class PlotSettingsDescriptor
+    {
+        private string name;
+        private FileDescriptor file;
+        private string pageSizeName;
+        private string plotterName;
+
+        public string Name => name;
+
+        public FileDescriptor File => file;
+
+        public string PageSizeName => pageSizeName;
+
+        public string PlotterName => plotterName;
+
+        public PlotSettingsDescriptor(string name, FileDescriptor file, string pageSizeName, string plotterName)
+        {
+            this.name = name;
+            this.file = file;
+            this.pageSizeName = pageSizeName;
+            this.plotterName = plotterName;
+        }
+    }
+
+    public class FormatDescriptor : INotifyPropertyChanged
+    {
+        private string name;
+        private bool isChecked;
+        private ObservableCollection<SheetDescriptor> sheets = new ObservableCollection<SheetDescriptor>();
+
+        public string Name => name;
+
+        public bool IsChecked => isChecked;
+
+        public ObservableCollection<SheetDescriptor> Sheets => sheets;
+
+        public FormatDescriptor(string name)
+        {
+            this.name = name;
+        }
+
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 
@@ -241,7 +352,7 @@ namespace CSPDS
         private string name;
         private Document document;
         private bool isChecked;
-        
+
         private ObservableCollection<SheetDescriptor> sheets = new ObservableCollection<SheetDescriptor>();
 
         public string Name => name;
@@ -306,7 +417,8 @@ namespace CSPDS
             set => isChecked = value;
         }
 
-        public SheetDescriptor(ObjectId borderEntity, Database db, FileDescriptor file,Dictionary<string, string> properties)
+        public SheetDescriptor(ObjectId borderEntity, Database db, FileDescriptor file,
+            Dictionary<string, string> properties)
         {
             this.borderEntity = borderEntity;
             this.db = db;
