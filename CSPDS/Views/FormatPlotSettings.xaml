@@ -10,7 +10,25 @@
     <Grid Margin="3">
         <DataGrid x:Name="dgFormats" AutoGenerateColumns="False" d:DataContext="{d:DesignInstance Type=source:FormatDescriptor}">
             <DataGrid.Columns>
-                <DataGridTextColumn Binding="{Binding Name}"/>
+            
+                <DataGridTextColumn IsReadOnly="True" Binding="{Binding Name}"/>
+                <DataGridTemplateColumn>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Path=SelectedSetting.Name}"/>    
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                        
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <ComboBox SelectedItem="{Binding SelectedSetting}" 
+                                      ItemsSource="{Binding SettingVariants}"
+                                      DisplayMemberPath="Name"
+                            />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                    
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

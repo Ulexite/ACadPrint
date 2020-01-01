@@ -10,9 +10,9 @@
     <Grid Margin="3">
         <DataGrid x:Name="dgSettings" AutoGenerateColumns="False" d:DataContext="{d:DesignInstance Type=source:PlotSettingsDescriptor}">
             <DataGrid.Columns>
-                <DataGridTextColumn Binding="{Binding Name}"/>
-                <DataGridTextColumn Binding="{Binding PageSizeName}"/>
-                <DataGridTextColumn Binding="{Binding PlotterName}"/>
+                <DataGridTextColumn IsReadOnly="True" Binding="{Binding Name}"/>
+                <DataGridTextColumn IsReadOnly="True" Binding="{Binding PageSizeName}"/>
+                <DataGridTextColumn IsReadOnly="True" Binding="{Binding PlotterName}"/>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

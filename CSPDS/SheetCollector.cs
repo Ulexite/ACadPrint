@@ -115,7 +115,7 @@ namespace CSPDS
                 return settingsByName[key];
 
             PlotSettings set = new PlotSettings(true);
-            set.CopyFrom(tr.GetObject((ObjectId) settingsDict.GetAt("1_@PlotSPDSModel"), OpenMode.ForRead));
+            set.CopyFrom(tr.GetObject(settingsDict.GetAt(key), OpenMode.ForRead));
             
             PlotSettingsDescriptor ret = new PlotSettingsDescriptor(key, fd, set.PlotPaperSize.ToString(), set.PlotConfigurationName);
             settingsByName.Add(key, ret);
@@ -290,7 +290,7 @@ namespace CSPDS
             if (formatByName.ContainsKey(name))
                 return formatByName[name];
 
-            FormatDescriptor fd = new FormatDescriptor(name);
+            FormatDescriptor fd = new FormatDescriptor(name, settings);
             formats.Add(fd);
             formatByName.Add(name, fd);
             return fd;
@@ -323,19 +323,32 @@ namespace CSPDS
 
     public class FormatDescriptor : INotifyPropertyChanged
     {
+        private static PlotSettingsDescriptor notSelected = new PlotSettingsDescriptor("- настройки -", null, "","");
         private string name;
         private bool isChecked;
         private ObservableCollection<SheetDescriptor> sheets = new ObservableCollection<SheetDescriptor>();
-
+        private PlotSettingsDescriptor selectedSetting;
+        private ObservableCollection<PlotSettingsDescriptor> settingVariants;
+        
         public string Name => name;
 
         public bool IsChecked => isChecked;
 
+        public PlotSettingsDescriptor SelectedSetting
+        {    
+            get => selectedSetting;
+            set => selectedSetting = value;
+        }
+
+        public ObservableCollection<PlotSettingsDescriptor> SettingVariants => settingVariants;
+
         public ObservableCollection<SheetDescriptor> Sheets => sheets;
 
-        public FormatDescriptor(string name)
+        public FormatDescriptor(string name, ObservableCollection<PlotSettingsDescriptor> settingVariants)
         {
             this.name = name;
+            this.settingVariants = settingVariants;
+            selectedSetting = notSelected;
         }
 
 
