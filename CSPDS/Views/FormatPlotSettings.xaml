@@ -8,26 +8,37 @@
              mc:Ignorable="d" Height="600" Width="800">
 
     <Grid Margin="3">
-        <DataGrid x:Name="dgFormats" AutoGenerateColumns="False" d:DataContext="{d:DesignInstance Type=source:FormatDescriptor}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <StackPanel Orientation="Horizontal" Margin="5" Grid.Row="0">
+            <Button Click="Plot" Margin="3">Печать</Button>
+            <Button Click="Refresh" Margin="3">Обновить</Button>
+        </StackPanel>
+        
+        <DataGrid x:Name="dgFormats" AutoGenerateColumns="False"
+                  d:DataContext="{d:DesignInstance Type=source:FormatDescriptor}"
+                  Grid.Row="1">
             <DataGrid.Columns>
-            
-                <DataGridTextColumn IsReadOnly="True" Binding="{Binding Name}"/>
-                <DataGridTemplateColumn>
+
+                <DataGridTextColumn IsReadOnly="True" Binding="{Binding Name}" Header="Формат"/>
+                
+                <DataGridTemplateColumn Header="Настройки">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Path=SelectedSetting.Name}"/>    
+                            <TextBlock Text="{Binding Path=SelectedSetting.Name}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
-                        
                     <DataGridTemplateColumn.CellEditingTemplate>
                         <DataTemplate>
-                            <ComboBox SelectedItem="{Binding SelectedSetting}" 
-                                      ItemsSource="{Binding SettingVariants}"
-                                      DisplayMemberPath="Name"
-                            />
+                            <ComboBox
+                                SelectedItem="{Binding SelectedSetting, Mode=TwoWay, ValidatesOnDataErrors=True, UpdateSourceTrigger=PropertyChanged}"
+                                ItemsSource="{Binding SettingVariants}"
+                                DisplayMemberPath="Name" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
-                    
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>

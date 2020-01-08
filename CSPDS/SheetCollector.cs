@@ -50,6 +50,22 @@ namespace CSPDS
 
         public ObservableCollection<PlotSettingsDescriptor> Settings => settings;
 
+        public PlotSettingsDescriptor DescriptorFor(SheetDescriptor sheet)
+        {
+            //TODO: custom PlotSettings
+            string formatName = sheet.Format;
+            _log.DebugFormat("SettingsDescriptor for format: {0}", formatName);
+            FormatDescriptor format = formatByName[formatName];
+            if (!(format.SelectedSetting.File is null))
+            {
+                _log.DebugFormat("Forund SettingsDescriptor for format: {0} : {1}", formatName, format.SelectedSetting.Name);
+
+                return format.SelectedSetting;
+            }
+
+            _log.DebugFormat("Not Forund SettingsDescriptor for format: {0}", formatName);
+            return null;
+        }
         public void Refresh(DocumentCollection documentCollection)
         {
             try
@@ -323,9 +339,14 @@ namespace CSPDS
 
     public class FormatDescriptor : INotifyPropertyChanged
     {
-        private static PlotSettingsDescriptor notSelected = new PlotSettingsDescriptor("- настройки -", null, "","");
+        private static readonly ILog _log =
+            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
+        private static PlotSettingsDescriptor notSelected = new PlotSettingsDescriptor("--  настройки  --", null, "","");
+        
         private string name;
         private bool isChecked;
+        
         private ObservableCollection<SheetDescriptor> sheets = new ObservableCollection<SheetDescriptor>();
         private PlotSettingsDescriptor selectedSetting;
         private ObservableCollection<PlotSettingsDescriptor> settingVariants;
@@ -335,9 +356,13 @@ namespace CSPDS
         public bool IsChecked => isChecked;
 
         public PlotSettingsDescriptor SelectedSetting
-        {    
+        {
             get => selectedSetting;
-            set => selectedSetting = value;
+            set
+            {
+                selectedSetting = value;
+                OnPropertyChanged("SelectedSetting");
+            }
         }
 
         public ObservableCollection<PlotSettingsDescriptor> SettingVariants => settingVariants;

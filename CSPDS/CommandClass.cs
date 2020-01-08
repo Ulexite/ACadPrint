@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
@@ -37,11 +38,13 @@ namespace CSPDS
                 if (mainPalette is null)
                 {
                     mainPalette = new PaletteSet("Менеджер печати ЦПП");
-                    mainPalette.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
+                    mainPalette.SetSize(new Size(800,600));
                     
-                    var byFiles = new BorderByFiles(sheetCollector.ByFiles);
+                    mainPalette.DockEnabled = (DockSides) ((int) DockSides.Left + (int) DockSides.Right);
+                    PrintManager printManager = new PrintManager(sheetCollector);
+                    var byFiles = new BorderByFiles(printManager,sheetCollector);
                     //var byFormats = new BorderByFiles(sheetCollector.ByFormats);
-                    var formatSettings = new FormatPlotSettings(sheetCollector.Formats);
+                    var formatSettings = new FormatPlotSettings(printManager, sheetCollector);
                     var settingsList = new PlotSettingsList(sheetCollector.Settings);
 
                     ElementHost filesHost = new ElementHost();

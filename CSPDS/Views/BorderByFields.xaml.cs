@@ -18,10 +18,40 @@ namespace CSPDS.Views
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public BorderByFiles(ObservableCollection<FileDescriptor> files)
+        private PrintManager printManager;
+        private SheetCollector collector;
+
+        public BorderByFiles(PrintManager printManager, SheetCollector collector)
         {
             InitializeComponent();
-            tvrObjects.ItemsSource = files;
+            tvrObjects.ItemsSource = collector.ByFiles;
+            this.printManager = printManager;
+            this.collector = collector;
+        }
+
+        private void Plot(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                printManager.PrintSelected();
+            }
+            catch (Exception exception)
+            {
+                _log.Error(exception);
+            }
+            
+        }
+
+        private void Refresh(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                collector.Refresh(Application.DocumentManager);
+            }
+            catch (Exception exception)
+            {
+                _log.Error(exception);
+            }
         }
 
         private void OnSelect(object sender, RoutedPropertyChangedEventArgs<Object> e)

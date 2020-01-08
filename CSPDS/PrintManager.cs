@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -9,11 +10,14 @@ using Autodesk.AutoCAD.PlottingServices;
 using Autodesk.AutoCAD.Windows.Data;
 using log4net;
 using PlotType = Autodesk.AutoCAD.DatabaseServices.PlotType;
+using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace CSPDS
 {
     public class PrintManager
     {
+        private SheetCollector sheetCollector;
+
         [DllImport("accore.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "acedTrans")]
         static extern int acedTrans(
             double[] point,
@@ -26,86 +30,101 @@ namespace CSPDS
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-/*        public void PdfAll(FileDescriptor file)
+        public PrintManager(SheetCollector sheetCollector)
         {
-            _log.DebugFormat("PdfAll {0}", file.Name);
+            this.sheetCollector = sheetCollector;
+        }
+
+        public void PrintSelected()
+        {
+            IEnumerable<FileDescriptor> files = sheetCollector.ByFiles;
+            List<PlotPlanItem> plan = PreparePlan(files);
+            //TODO: show plan and ask
+            //TODO: save plan
+            PdfPlan(plan, "C:\\Projects\\cs\\CSPDS\\pdfplan.pdf");
+        }
+
+        private List<PlotPlanItem> PreparePlan(IEnumerable<FileDescriptor> files)
+        {
+            _log.Debug("Prepare Plan");
+            List<PlotPlanItem> ret = new List<PlotPlanItem>();
+            short bgPlot = (short) Application.GetSystemVariable("BACKGROUNDPLOT");
+            Application.SetSystemVariable("BACKGROUNDPLOT", 1);
+
+            try
+            {
+                foreach (FileDescriptor file in files)
+                {
+                    foreach (SheetDescriptor sheet in file.Sheets)
+                    {
+                        if (sheet.IsChecked)
+                        {
+                            PlotSettingsDescriptor settings = sheetCollector.DescriptorFor(sheet);
+                            if (!(settings is null))
+                            {
+                                ret.Add(new PlotPlanItem(file, sheet, settings));
+                                _log.DebugFormat("В план печати: {0}", sheet.UniqId);
+                            }
+                            else
+                            {
+                                ret.Add(new PlotPlanItem("Не заданы настройки печати"));
+                                _log.ErrorFormat("Не заданы настройки печати {0}", sheet.UniqId);
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Application.SetSystemVariable("BACKGROUNDPLOT", bgPlot);
+            }
+
+            return ret;
+        }
+
+        private void PdfPlan(List<PlotPlanItem> plan, string pathToPdf)
+        {
+            _log.DebugFormat("PdfPlan {0}", pathToPdf);
             if (PlotFactory.ProcessPlotState == ProcessPlotState.NotPlotting)
             {
-                Database db = file.Db;
-
-                using (Transaction tr = db.TransactionManager.StartTransaction())
+                using (PlotProgressDialog dialog = new PlotProgressDialog(false, plan.Count, true))
                 {
+                    dialog.set_PlotMsgString(PlotMessageIndex.DialogTitle, "Печать " + pathToPdf);
+                    dialog.set_PlotMsgString(PlotMessageIndex.CancelJobButtonMessage, "Отменить всё");
+                    dialog.set_PlotMsgString(PlotMessageIndex.CancelSheetButtonMessage, "Отменить лист");
+
                     using (PlotEngine plotEngine = PlotFactory.CreatePublishEngine())
                     {
-                        using (PlotProgressDialog dialog = new PlotProgressDialog(false, file.Sheets.Count, true))
+                        dialog.OnBeginPlot();
+                        dialog.IsVisible = true;
+                        plotEngine.BeginPlot(dialog, null);
+
+                        int printedCount = 0;
+                        int pageCount = plan.Count;
+
+                        foreach (PlotPlanItem planItem in plan)
                         {
-                            _log.Debug("Init Dialog");
-
-                            dialog.set_PlotMsgString(PlotMessageIndex.DialogTitle, "Печать " + file.Name);
-                            dialog.set_PlotMsgString(PlotMessageIndex.CancelJobButtonMessage, "Отменить всё");
-                            dialog.set_PlotMsgString(PlotMessageIndex.CancelSheetButtonMessage, "Отменить лист");
-
-                            dialog.OnBeginPlot();
-
-                            dialog.IsVisible = true;
-
-                            plotEngine.BeginPlot(dialog, null);
-
-
-                            int count = file.Sheets.Count;
-                            bool isFirst = true;
-                            foreach (SheetDescriptor border in file.Sheets)
+                            if (planItem.IsCorrect)
                             {
-                                count--;
-                                _log.DebugFormat("Border Num {0}", count);
+                                PlotSettings plotSettingsForSheet = GetPlotSettings(planItem);
+                                Extents2d window = WindowFrom(planItem);
 
-                                _log.Debug("Get window");
-                                Extents2d window = WindowFrom(border, db, tr);
-                                _log.DebugFormat("window: {0}-{1}",window.MinPoint,window.MaxPoint);
-                                
-                                dialog.OnBeginSheet();
-
-                                _log.DebugFormat("StartForBorder {0}", border.SheetNumber);
-                                PlotSettings plotSettingsForSheet = PlotSettingsFor(border, db, tr);
-
-                                _log.Debug("PlotSettingsValidator");
                                 PlotSettingsValidator validator = PlotSettingsValidator.Current;
-
-                                _log.Debug("SetPlotWindowArea");
                                 validator.SetPlotWindowArea(plotSettingsForSheet, window);
-                                _log.Debug("SetPlotType");
                                 validator.SetPlotType(plotSettingsForSheet, PlotType.Window);
-                                _log.Debug("SetPlotType");
                                 validator.SetStdScaleType(plotSettingsForSheet, StdScaleType.ScaleToFit);
                                 validator.SetPlotCentered(plotSettingsForSheet, true);
 
-                                _log.Debug("Plotinfo for PDF");
-                                BlockTableRecord btr =
-                                    (BlockTableRecord) tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead);
-                                Layout layout = (Layout) tr.GetObject(btr.LayoutId, OpenMode.ForRead);
-                                PlotInfo plotInfo = new PlotInfo();
-                                plotInfo.Layout = btr.LayoutId;
-                                PlotInfoValidator piv = new PlotInfoValidator();
-                                piv.MediaMatchingPolicy = MatchingPolicy.MatchEnabled;
-                                plotInfo.OverrideSettings = plotSettingsForSheet;
 
-                                piv.Validate(plotInfo);
+                                PlotInfo plotInfo = GetPlotInfo(planItem, plotSettingsForSheet);
 
-                                if (isFirst)
-                                {
-                                    isFirst = false;
-                                    plotEngine.BeginDocument(
-                                        plotInfo,
-                                        file.Name,
-                                        null,
-                                        1,
-                                        true,
-                                        file.Name + ".pdf"
-                                    );
-                                }
+
+                                if (printedCount <= 0)
+                                    BeginDocument(plotEngine, plotInfo, planItem, pathToPdf);
 
                                 PlotPageInfo plotPageInfo = new PlotPageInfo();
-                                plotEngine.BeginPage(plotPageInfo, plotInfo, count <= 0, null);
+
+                                plotEngine.BeginPage(plotPageInfo, plotInfo, printedCount >= pageCount, null);
                                 plotEngine.BeginGenerateGraphics(null);
                                 plotEngine.EndGenerateGraphics(null);
                                 plotEngine.EndPage(null);
@@ -113,57 +132,137 @@ namespace CSPDS
                                 System.Windows.Forms.Application.DoEvents();
                             }
 
-                            plotEngine.EndDocument(null);
-                            dialog.OnEndPlot();
-                            plotEngine.EndPlot(null);
+                            printedCount++;
                         }
                     }
                 }
             }
         }
-*/
-        private Extents2d WindowFrom(SheetDescriptor sheet, Database db, Transaction tr)
+
+        private void BeginDocument(PlotEngine plotEngine, PlotInfo plotInfo, PlotPlanItem planItem, string pathToPdf)
         {
-            _log.Debug("Try to take window");
-            Curve curve = (Curve) tr.GetObject(sheet.BorderEntity, OpenMode.ForRead);
-            _log.Debug("Take bounds");
-            Extents3d bounds = curve.Bounds.Value;
-            _log.Debug("Take points");
-            Point3d first = bounds.MinPoint;
-            Point3d second = bounds.MaxPoint;
-            _log.DebugFormat("First {0}", first);
-            _log.DebugFormat("First {0}", second);
-
-            ResultBuffer rbFrom = new ResultBuffer(new TypedValue(5003, 1));
-            ResultBuffer rbTo = new ResultBuffer(new TypedValue(5003, 2));
-
-            double[] firres = new double[] {0,0,0};
-            double[] secres = new double[] {0,0,0};
-
-            acedTrans(first.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, firres);
-            acedTrans(second.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, secres);
-            
-            var ret = new Extents2d(
-                firres[0],
-                firres[1],
-                secres[0],
-                secres[1]
+            plotEngine.BeginDocument(
+                plotInfo,
+                planItem.File.Name,
+                null,
+                1,
+                false,
+                pathToPdf
             );
-
-            _log.DebugFormat("Extents2d", ret);
-            return ret;
         }
 
-        private PlotSettings PlotSettingsFor(SheetDescriptor sheet, Database db, Transaction tr)
+        private PlotInfo GetPlotInfo(PlotPlanItem planItem, PlotSettings plotSettingsForSheet)
         {
-            _log.DebugFormat("Get plot settings for {0}", sheet.Format);
+            Database db = planItem.Sheet.Db;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                BlockTableRecord btr =
+                    (BlockTableRecord) tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead);
+                Layout layout = (Layout) tr.GetObject(btr.LayoutId, OpenMode.ForRead);
+                PlotInfo plotInfo = new PlotInfo();
+                plotInfo.Layout = btr.LayoutId;
+                PlotInfoValidator piv = new PlotInfoValidator();
+                piv.MediaMatchingPolicy = MatchingPolicy.MatchEnabled;
 
-            DBDictionary  settingsDict =
-            (DBDictionary) tr.GetObject(db.PlotSettingsDictionaryId, OpenMode.ForRead);
+                plotInfo.OverrideSettings = plotSettingsForSheet;
+                try
+                {
+                    piv.Validate(plotInfo);
+                }
+                catch (Exception e)
+                {
+                    _log.Error(e);
+                    throw e;
+                }
 
-            PlotSettings ret = new PlotSettings(true);
-            ret.CopyFrom(tr.GetObject((ObjectId) settingsDict.GetAt("1_@PlotSPDSModel"), OpenMode.ForRead));
-            return ret;
+                return plotInfo;
+            }
+        }
+
+        private Extents2d WindowFrom(PlotPlanItem planItem)
+        {
+            SheetDescriptor sheet = planItem.Sheet;
+            Database db = planItem.Sheet.Db;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                Curve curve = (Curve) tr.GetObject(sheet.BorderEntity, OpenMode.ForRead);
+                Extents3d bounds = curve.Bounds.Value;
+                Point3d first = bounds.MinPoint;
+                Point3d second = bounds.MaxPoint;
+                ResultBuffer rbFrom = new ResultBuffer(new TypedValue(5003, 1));
+                ResultBuffer rbTo = new ResultBuffer(new TypedValue(5003, 2));
+                double[] firres = {0, 0, 0};
+                double[] secres = {0, 0, 0};
+                acedTrans(first.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, firres);
+                acedTrans(second.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, secres);
+                var ret = new Extents2d(
+                    firres[0],
+                    firres[1],
+                    secres[0],
+                    secres[1]
+                );
+                _log.DebugFormat("Extents2d", ret);
+                return ret;
+            }
+        }
+
+        private PlotSettings GetPlotSettings(PlotPlanItem planItem)
+        {
+            _log.Debug("GetPlotSettings");
+            //Настройки могут быть не в том файле, в котором лист
+            FileDescriptor file = planItem.Settings.File;
+            Database db = file.Document.Database;
+            PlotSettings plotSettingsForSheet = new PlotSettings(true);
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                DBDictionary settingsDict =
+                    (DBDictionary) tr.GetObject(db.PlotSettingsDictionaryId, OpenMode.ForRead);
+                plotSettingsForSheet.CopyFrom(tr.GetObject((ObjectId) settingsDict.GetAt(planItem.Settings.Name),
+                    OpenMode.ForRead));
+                return plotSettingsForSheet;
+            }
+        }
+    }
+
+    public class FullPlan
+    {
+        private List<PlotPlanItem> plan;
+        private string fileToSave;
+    }
+
+    public class PlotPlanItem
+    {
+        private string wrong;
+        private FileDescriptor file;
+        private SheetDescriptor sheet;
+        private PlotSettingsDescriptor settings;
+
+        private bool isCorrect;
+
+        public bool IsCorrect => isCorrect;
+
+        public FileDescriptor File => file;
+
+        public SheetDescriptor Sheet => sheet;
+
+        public PlotSettingsDescriptor Settings => settings;
+
+        public string Wrong => wrong;
+
+        public PlotPlanItem(FileDescriptor file, SheetDescriptor sheet, PlotSettingsDescriptor settings)
+        {
+            this.file = file;
+            this.sheet = sheet;
+            this.settings = settings;
+            this.wrong = "";
+            this.isCorrect = true;
+        }
+
+        public PlotPlanItem(string whatWrong)
+        {
+            wrong = whatWrong;
+            this.isCorrect = false;
         }
     }
 }
