@@ -18,10 +18,19 @@ namespace CSPDS.Views
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public PlotPlanPreview(FullPlan plan)
+        public PlotPlanPreview(List<PlotPlanItem> plan)
         {
             InitializeComponent();
+            this.plan.ItemsSource = plan;
         }
 
-   }
+        private void PlotPlan(object sender, RoutedEventArgs e)
+        {
+        
+        }
+        private void PlotPlanToFile(object sender, RoutedEventArgs e)
+        {
+        }
+
+    }
 }

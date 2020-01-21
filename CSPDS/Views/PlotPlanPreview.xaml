@@ -1,26 +1,101 @@
 ﻿<Window x:Class="CSPDS.Views.PlotPlanPreview"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:CSPDS.Views"
-             xmlns:source="clr-namespace:CSPDS"
-             mc:Ignorable="d" Height="600" Width="800">
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:CSPDS.Views"
+        xmlns:source="clr-namespace:CSPDS"
+        mc:Ignorable="d" Height="600" Width="800">
 
     <Grid Margin="3">
         <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
-            <RowDefinition Height="40"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        
-        <DataGrid x:Name="dgSettings" AutoGenerateColumns="False" d:DataContext="{d:DesignInstance Type=source:PlotSettingsDescriptor}" Grid.Row="2">
+        <StackPanel Orientation="Horizontal" Margin="5" Grid.Row="0">
+            <Button Click="PlotPlan" Margin="3">Печать</Button>
+            <Button Click="PlotPlanToFile" Margin="3">Печать в Файл</Button>
+        </StackPanel>
+        <DataGrid x:Name="plan" AutoGenerateColumns="False" d:DataContext="{d:DesignInstance Type=source:PlotPlanItem}"
+                  Grid.Row="1">
+            <DataGrid.Style>
+                <Style TargetType="DataGrid">
+                    <Setter Property="RowBackground" Value="Wheat" />
+                    <Setter Property="AlternatingRowBackground" Value="WhiteSmoke" />
+                </Style>
+            </DataGrid.Style>
+            <DataGrid.CellStyle>
+                <Style TargetType="DataGridCell">
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="LightBlue" />
+                            <Setter Property="Foreground" Value="Black" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.CellStyle>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsCorrect}" Value="False">
+                            <Setter Property="Background" Value="Red" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn IsReadOnly="True" Header="Название" Binding="{Binding Name}"/>
-                <DataGridTextColumn IsReadOnly="True" Header="Размер страницы" Binding="{Binding PageSizeName}"/>
-                <DataGridTextColumn IsReadOnly="True" Header="Имя плоттера" Binding="{Binding PlotterName}"/>
+                <DataGridTextColumn IsReadOnly="True" Header="Проблемы" Binding="{Binding Path=Wrong}" />
+                <DataGridTextColumn IsReadOnly="True" Header="Лист" Binding="{Binding Path=Sheet.Properties[Лист]}" />
+                <DataGridTextColumn IsReadOnly="True" Header="Наименование чертежа">
+                    <DataGridTextColumn.Binding>
+                        <MultiBinding StringFormat="{}{0} {1} {2}">
+                            <Binding Path="Sheet.Properties[Наименование чертежа]" />
+                            <Binding Path="Sheet.Properties[Наименование чертежа 1]" />
+                            <Binding Path="Sheet.Properties[Наименование чертежа 2]" />
+                        </MultiBinding>
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+                <DataGridTextColumn IsReadOnly="True" Header="Наименование">
+                    <DataGridTextColumn.Binding>
+                        <MultiBinding StringFormat="{}{0} {1} {2}">
+                            <Binding Path="Sheet.Properties[Наименование1]" />
+                            <Binding Path="Sheet.Properties[Наименование2]" />
+                            <Binding Path="Sheet.Properties[Наименование3]" />
+                        </MultiBinding>
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+                <DataGridTextColumn IsReadOnly="True" Header="Формат">
+                    <DataGridTextColumn.Binding>
+
+                        <Binding Path="Sheet.Properties[Формат]" />
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+                <DataGridTextColumn IsReadOnly="True" Header="Файл">
+                    <DataGridTextColumn.Binding>
+
+                        <Binding Path="File.Name" />
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+                <DataGridTextColumn IsReadOnly="True" Header="Набор настроек">
+                    <DataGridTextColumn.Binding>
+
+                        <Binding Path="Settings.Name" />
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+                <DataGridTextColumn IsReadOnly="True" Header="Плоттер">
+                    <DataGridTextColumn.Binding>
+
+                        <Binding Path="Settings.PlotterName" />
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+                <DataGridTextColumn IsReadOnly="True" Header="Ориентация">
+                    <DataGridTextColumn.Binding>
+
+                        <Binding Path="Settings.Orientation" />
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
-        
+
     </Grid>
 </Window>

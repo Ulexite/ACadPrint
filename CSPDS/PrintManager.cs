@@ -8,6 +8,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.PlottingServices;
 using Autodesk.AutoCAD.Windows.Data;
+using CSPDS.Views;
 using log4net;
 using PlotType = Autodesk.AutoCAD.DatabaseServices.PlotType;
 using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
@@ -39,6 +40,9 @@ namespace CSPDS
         {
             IEnumerable<FileDescriptor> files = sheetCollector.ByFiles;
             List<PlotPlanItem> plan = PreparePlan(files);
+            PlotPlanPreview preview = new PlotPlanPreview(plan);
+            Application.ShowModalWindow(preview);
+            
             //TODO: show plan and ask
             //TODO: save plan
             PdfPlan(plan, "C:\\Projects\\cs\\CSPDS\\pdfplan.pdf");
@@ -225,12 +229,7 @@ namespace CSPDS
         }
     }
 
-    public class FullPlan
-    {
-        private List<PlotPlanItem> plan;
-        private string fileToSave;
-    }
-
+    
     public class PlotPlanItem
     {
         private string wrong;
@@ -241,6 +240,7 @@ namespace CSPDS
         private bool isCorrect;
 
         public bool IsCorrect => isCorrect;
+        public bool IsWrong => !isCorrect;
 
         public FileDescriptor File => file;
 

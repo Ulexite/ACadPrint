@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Customization;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Internal.PropertyInspector;
 using log4net;
@@ -319,12 +320,13 @@ namespace CSPDS
         private FileDescriptor file;
         private string pageSizeName;
         private string plotterName;
-
+        private Orientation orientation;
         public string Name => name;
 
         public FileDescriptor File => file;
 
         public string PageSizeName => pageSizeName;
+        public string Orientation => "Альбомная (0)";
 
         public string PlotterName => plotterName;
 
