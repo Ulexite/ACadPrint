@@ -355,7 +355,18 @@ namespace CSPDS
         
         public string Name => name;
 
-        public bool IsChecked => isChecked;
+        public bool IsChecked
+        {
+            get => isChecked;
+            set
+            {
+                isChecked = value;
+                foreach (var sheet in sheets)
+                {
+                    sheet.SetCheckedByParent(value);
+                }
+            }
+        }
 
         public PlotSettingsDescriptor SelectedSetting
         {
@@ -391,7 +402,7 @@ namespace CSPDS
     {
         private string name;
         private Document document;
-        private bool isChecked;
+        private bool? isChecked = false;
 
         private ObservableCollection<SheetDescriptor> sheets = new ObservableCollection<SheetDescriptor>();
 
@@ -401,10 +412,17 @@ namespace CSPDS
 
         public ObservableCollection<SheetDescriptor> Sheets => sheets;
 
-        public bool IsChecked
+        public bool? IsChecked
         {
             get => isChecked;
-            set => isChecked = value;
+            set
+            {
+                isChecked = value;
+                foreach (var sheet in sheets)
+                {
+                    sheet.SetCheckedByParent(value == true);
+                }
+            }
         }
 
         public FileDescriptor(string name, Document document)
@@ -431,6 +449,30 @@ namespace CSPDS
             sheets.Remove(sheet);
             OnPropertyChanged("Sheets");
         }
+
+        public void UpdateChecked()
+        {
+            bool someChecked = false;
+            bool someUnchecked = false;
+            foreach (var sheet in sheets)
+            {
+                if (sheet.IsChecked)
+                    someChecked = true;
+                else
+                    someUnchecked = true;
+            }
+
+            if (someChecked)
+            {
+                if (someUnchecked)
+                    isChecked = null;
+                else
+                    isChecked = true;
+            } else
+                isChecked = false;
+
+            OnPropertyChanged("IsChecked");
+        }
     }
 
     public class SheetDescriptor : INotifyPropertyChanged
@@ -454,7 +496,17 @@ namespace CSPDS
         public bool IsChecked
         {
             get => isChecked;
-            set => isChecked = value;
+            set
+            {
+                isChecked = value;
+                file.UpdateChecked();
+            }
+        }
+
+        public void SetCheckedByParent(bool value)
+        {
+            this.isChecked = value;
+            OnPropertyChanged("IsChecked");
         }
 
         public SheetDescriptor(ObjectId borderEntity, Database db, FileDescriptor file,
