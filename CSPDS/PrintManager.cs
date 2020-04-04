@@ -40,12 +40,8 @@ namespace CSPDS
         {
             IEnumerable<FileDescriptor> files = sheetCollector.ByFiles;
             List<PlotPlanItem> plan = PreparePlan(files);
-            PlotPlanPreview preview = new PlotPlanPreview(plan);
+            PlotPlanPreview preview = new PlotPlanPreview(plan, this);
             Application.ShowModalWindow(preview);
-            
-            //TODO: show plan and ask
-            //TODO: save plan
-            PdfPlan(plan, "C:\\Projects\\cs\\CSPDS\\pdfplan.pdf");
         }
 
         private List<PlotPlanItem> PreparePlan(IEnumerable<FileDescriptor> files)
@@ -60,13 +56,13 @@ namespace CSPDS
                 foreach (FileDescriptor file in files)
                 {
                     foreach (SheetDescriptor sheet in file.Sheets)
-                    {
+                    {    
                         if (sheet.IsChecked)
                         {
                             PlotSettingsDescriptor settings = sheetCollector.DescriptorFor(sheet);
                             if (!(settings is null))
                             {
-                                ret.Add(new PlotPlanItem(file, sheet, settings));
+                                ret.Add(new PlotPlanItem(sheet, settings));
                                 _log.DebugFormat("В план печати: {0}", sheet.UniqId);
                             }
                             else
@@ -86,9 +82,9 @@ namespace CSPDS
             return ret;
         }
 
-        private void PdfPlan(List<PlotPlanItem> plan, string pathToPdf)
+        public void PlotByPlan(List<PlotPlanItem> plan, string pathToPdf)
         {
-            _log.DebugFormat("PdfPlan {0}", pathToPdf);
+            _log.DebugFormat("PlotByPlan {0}", pathToPdf);
             if (PlotFactory.ProcessPlotState == ProcessPlotState.NotPlotting)
             {
                 using (PlotProgressDialog dialog = new PlotProgressDialog(false, plan.Count, true))
@@ -122,9 +118,8 @@ namespace CSPDS
 
                                 PlotInfo plotInfo = GetPlotInfo(planItem, plotSettingsForSheet);
 
-
-                                if (printedCount <= 0)
-                                    BeginDocument(plotEngine, plotInfo, planItem, pathToPdf);
+                                AcUIManager.FocusOnFile(planItem.Sheet.File);
+                                BeginDocument(plotEngine, plotInfo, planItem, pathToPdf);
 
                                 PlotPageInfo plotPageInfo = new PlotPageInfo();
 
@@ -147,7 +142,7 @@ namespace CSPDS
         {
             plotEngine.BeginDocument(
                 plotInfo,
-                planItem.File.Name,
+                planItem.Sheet.File.Name,
                 null,
                 1,
                 false,
@@ -233,7 +228,6 @@ namespace CSPDS
     public class PlotPlanItem
     {
         private string wrong;
-        private FileDescriptor file;
         private SheetDescriptor sheet;
         private PlotSettingsDescriptor settings;
 
@@ -242,17 +236,14 @@ namespace CSPDS
         public bool IsCorrect => isCorrect;
         public bool IsWrong => !isCorrect;
 
-        public FileDescriptor File => file;
-
         public SheetDescriptor Sheet => sheet;
 
         public PlotSettingsDescriptor Settings => settings;
 
         public string Wrong => wrong;
 
-        public PlotPlanItem(FileDescriptor file, SheetDescriptor sheet, PlotSettingsDescriptor settings)
+        public PlotPlanItem(SheetDescriptor sheet, PlotSettingsDescriptor settings)
         {
-            this.file = file;
             this.sheet = sheet;
             this.settings = settings;
             this.wrong = "";

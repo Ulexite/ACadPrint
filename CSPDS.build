@@ -6,7 +6,7 @@
 	<property name="framework" value="net-3.5"/>
 	<property name="project.name" value="CSPDS"/>
 	
-	<property name="reference.replacestring.temlate" value="C:\Toolware\autodesk\Autodesk_ObjectARX_2019_Win_64_and_32_Bit\ ${acad.ver}\inc${platform}" dynamic="true"/>
+	<property name="reference.replacestring.temlate" value="D:\Toolware\autodesk\Autodesk_ObjectARX_2019_Win_64_and_32_Bit\ ${acad.ver}\inc${platform}" dynamic="true"/>
 	<property name="reference.findstring" value="${reference.replacestring.temlate}" readonly="true"/>
 	
 	<property name="reference.replacestring" value="${reference.replacestring.temlate}"/>

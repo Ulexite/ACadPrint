@@ -22,7 +22,6 @@
                   d:DataContext="{d:DesignInstance Type=source:FormatDescriptor}"
                   Grid.Row="1">
             <DataGrid.Columns>
-
                 <DataGridTextColumn IsReadOnly="True" Binding="{Binding Name}" Header="Формат"/>
                 
                 <DataGridTemplateColumn Header="Настройки">
@@ -31,6 +30,7 @@
                             <TextBlock Text="{Binding Path=SelectedSetting.Name}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
+                    
                     <DataGridTemplateColumn.CellEditingTemplate>
                         <DataTemplate>
                             <ComboBox
@@ -39,7 +39,9 @@
                                 DisplayMemberPath="Name" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
+                    
                 </DataGridTemplateColumn>
+                
             </DataGrid.Columns>
         </DataGrid>
     </Grid>
