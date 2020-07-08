@@ -19,15 +19,6 @@ namespace CSPDS
     {
         private SheetCollector sheetCollector;
 
-        [DllImport("accore.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "acedTrans")]
-        static extern int acedTrans(
-            double[] point,
-            IntPtr fromRb,
-            IntPtr toRb,
-            int disp,
-            double[] result
-        );
-
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -84,58 +75,8 @@ namespace CSPDS
 
         public void PlotByPlan(List<PlotPlanItem> plan, string pathToPdf)
         {
-            _log.DebugFormat("PlotByPlan {0}", pathToPdf);
-            if (PlotFactory.ProcessPlotState == ProcessPlotState.NotPlotting)
-            {
-                using (PlotProgressDialog dialog = new PlotProgressDialog(false, plan.Count, true))
-                {
-                    dialog.set_PlotMsgString(PlotMessageIndex.DialogTitle, "Печать " + pathToPdf);
-                    dialog.set_PlotMsgString(PlotMessageIndex.CancelJobButtonMessage, "Отменить всё");
-                    dialog.set_PlotMsgString(PlotMessageIndex.CancelSheetButtonMessage, "Отменить лист");
-
-                    using (PlotEngine plotEngine = PlotFactory.CreatePublishEngine())
-                    {
-                        dialog.OnBeginPlot();
-                        dialog.IsVisible = true;
-                        plotEngine.BeginPlot(dialog, null);
-
-                        int printedCount = 0;
-                        int pageCount = plan.Count;
-
-                        foreach (PlotPlanItem planItem in plan)
-                        {
-                            if (planItem.IsCorrect)
-                            {
-                                PlotSettings plotSettingsForSheet = GetPlotSettings(planItem);
-                                Extents2d window = WindowFrom(planItem);
-
-                                PlotSettingsValidator validator = PlotSettingsValidator.Current;
-                                validator.SetPlotWindowArea(plotSettingsForSheet, window);
-                                validator.SetPlotType(plotSettingsForSheet, PlotType.Window);
-                                validator.SetStdScaleType(plotSettingsForSheet, StdScaleType.ScaleToFit);
-                                validator.SetPlotCentered(plotSettingsForSheet, true);
-
-
-                                PlotInfo plotInfo = GetPlotInfo(planItem, plotSettingsForSheet);
-
-                                AcUIManager.FocusOnFile(planItem.Sheet.File);
-                                BeginDocument(plotEngine, plotInfo, planItem, pathToPdf);
-
-                                PlotPageInfo plotPageInfo = new PlotPageInfo();
-
-                                plotEngine.BeginPage(plotPageInfo, plotInfo, printedCount >= pageCount, null);
-                                plotEngine.BeginGenerateGraphics(null);
-                                plotEngine.EndGenerateGraphics(null);
-                                plotEngine.EndPage(null);
-                                dialog.OnEndSheet();
-                                System.Windows.Forms.Application.DoEvents();
-                            }
-
-                            printedCount++;
-                        }
-                    }
-                }
-            }
+            Plotter plotter = new Plotter();
+            plotter.Plot(plan);
         }
 
         private void BeginDocument(PlotEngine plotEngine, PlotInfo plotInfo, PlotPlanItem planItem, string pathToPdf)
@@ -178,32 +119,6 @@ namespace CSPDS
             }
         }
 
-        private Extents2d WindowFrom(PlotPlanItem planItem)
-        {
-            SheetDescriptor sheet = planItem.Sheet;
-            Database db = planItem.Sheet.Db;
-            using (Transaction tr = db.TransactionManager.StartTransaction())
-            {
-                Curve curve = (Curve) tr.GetObject(sheet.BorderEntity, OpenMode.ForRead);
-                Extents3d bounds = curve.Bounds.Value;
-                Point3d first = bounds.MinPoint;
-                Point3d second = bounds.MaxPoint;
-                ResultBuffer rbFrom = new ResultBuffer(new TypedValue(5003, 1));
-                ResultBuffer rbTo = new ResultBuffer(new TypedValue(5003, 2));
-                double[] firres = {0, 0, 0};
-                double[] secres = {0, 0, 0};
-                acedTrans(first.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, firres);
-                acedTrans(second.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, secres);
-                var ret = new Extents2d(
-                    firres[0],
-                    firres[1],
-                    secres[0],
-                    secres[1]
-                );
-                _log.DebugFormat("Extents2d", ret);
-                return ret;
-            }
-        }
 
         private PlotSettings GetPlotSettings(PlotPlanItem planItem)
         {

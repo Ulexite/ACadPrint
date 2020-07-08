@@ -128,12 +128,14 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Print\Plotter.cs" />
+    <Compile Include="Print\PrintManager.cs" />
+    
     <Compile Include="AcUIManager.cs" />
     <Compile Include="AllDocumentsAllObjects.cs" />
     <Compile Include="SheetCollector.cs" />
     <Compile Include="CommandClass.cs" />
     <Compile Include="Initializator.cs" />
-    <Compile Include="PrintManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\CmdOptions.Designer.cs">
       <DependentUpon>CmdOptions.resx</DependentUpon>
