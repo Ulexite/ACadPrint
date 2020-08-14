@@ -42,7 +42,7 @@ namespace CSPDS
         {
             AcUIManager.FocusOnFile(item.Sheet.File);
             using (item.Sheet.File.Document.LockDocument())
-            using(PlotProgressDialog dialog = new PlotProgressDialog(false, 1, true))
+            using (PlotProgressDialog dialog = new PlotProgressDialog(false, 1, true))
             using (PlotEngine plotEngine = PlotFactory.CreatePublishEngine())
             {
                 dialog.set_PlotMsgString(PlotMessageIndex.DialogTitle, "Печать");
@@ -61,6 +61,7 @@ namespace CSPDS
                 validator.SetPlotType(plotSettingsForSheet, PlotType.Window);
                 validator.SetStdScaleType(plotSettingsForSheet, StdScaleType.StdScale1To1);
                 validator.SetPlotCentered(plotSettingsForSheet, true);
+                validator.SetPlotRotation(plotSettingsForSheet, AutoRotation(window));
 
                 PlotInfo plotInfo = GetPlotInfo(item, plotSettingsForSheet);
                 
@@ -88,6 +89,13 @@ namespace CSPDS
             }
         }
 
+        private PlotRotation AutoRotation(Extents2d window)
+        {
+            if (window.MaxPoint.X - window.MinPoint.X < window.MaxPoint.Y - window.MinPoint.Y)
+                return PlotRotation.Degrees000;
+            return PlotRotation.Degrees090;
+        }
+
         private PlotInfo GetPlotInfo(PlotPlanItem planItem, PlotSettings plotSettingsForSheet)
         {
             Database db = planItem.Sheet.Db;
@@ -102,6 +110,7 @@ namespace CSPDS
                 piv.MediaMatchingPolicy = MatchingPolicy.MatchEnabled;
 
                 plotInfo.OverrideSettings = plotSettingsForSheet;
+                
                 piv.Validate(plotInfo);
 
                 return plotInfo;
