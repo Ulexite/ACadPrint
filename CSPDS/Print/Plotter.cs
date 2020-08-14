@@ -1,13 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Threading;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.PlottingServices;
+using log4net;
 using PlotType = Autodesk.AutoCAD.DatabaseServices.PlotType;
 
 namespace CSPDS
 {
     public class Plotter
     {
+        private static readonly ILog _log =
+            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        
         public void Plot(List<PlotPlanItem> plan)
         {
             if (PlotFactory.ProcessPlotState == ProcessPlotState.NotPlotting)
@@ -15,7 +21,19 @@ namespace CSPDS
                 foreach (PlotPlanItem item in plan)
                 {
                     if(item.IsCorrect)
-                     Plot(item);
+                        try
+                        {
+                            Plot(item);
+                        }
+                        catch (ThreadAbortException fatal)
+                        {
+                            _log.Fatal(fatal);
+                        }
+                        catch (Exception exceeption)
+                        {
+                            _log.Error(exceeption);
+                        } 
+                    
                 }
             }
         }
@@ -23,10 +41,17 @@ namespace CSPDS
         private void Plot(PlotPlanItem item)
         {
             AcUIManager.FocusOnFile(item.Sheet.File);
-            
+            using (item.Sheet.File.Document.LockDocument())
+            using(PlotProgressDialog dialog = new PlotProgressDialog(false, 1, true))
             using (PlotEngine plotEngine = PlotFactory.CreatePublishEngine())
             {
-                plotEngine.BeginPlot(null, null);
+                dialog.set_PlotMsgString(PlotMessageIndex.DialogTitle, "Печать");
+                dialog.set_PlotMsgString(PlotMessageIndex.CancelJobButtonMessage, "Отменить всё");
+                dialog.set_PlotMsgString(PlotMessageIndex.CancelSheetButtonMessage, "Отменить лист");
+                dialog.OnBeginPlot();
+                dialog.IsVisible = true;
+                
+                plotEngine.BeginPlot(dialog, null);
                 Extents2d window = item.Sheet.WindowFrom();
 
                 PlotSettings plotSettingsForSheet = item.Settings.GetSettings();
@@ -54,8 +79,10 @@ namespace CSPDS
                 plotEngine.BeginGenerateGraphics(null);
                 plotEngine.EndGenerateGraphics(null);
                 plotEngine.EndPage(null);
+                dialog.OnEndSheet();
                 plotEngine.EndDocument(null);
-                
+                plotEngine.EndPlot(null);
+                dialog.OnEndPlot();
                 System.Windows.Forms.Application.DoEvents();
 
             }

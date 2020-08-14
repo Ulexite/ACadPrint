@@ -120,23 +120,6 @@ namespace CSPDS
         }
 
 
-        private PlotSettings GetPlotSettings(PlotPlanItem planItem)
-        {
-            _log.Debug("GetPlotSettings");
-            //Настройки могут быть не в том файле, в котором лист
-            FileDescriptor file = planItem.Settings.File;
-            Database db = file.Document.Database;
-            PlotSettings plotSettingsForSheet = new PlotSettings(true);
-
-            using (Transaction tr = db.TransactionManager.StartTransaction())
-            {
-                DBDictionary settingsDict =
-                    (DBDictionary) tr.GetObject(db.PlotSettingsDictionaryId, OpenMode.ForRead);
-                plotSettingsForSheet.CopyFrom(tr.GetObject((ObjectId) settingsDict.GetAt(planItem.Settings.Name),
-                    OpenMode.ForRead));
-                return plotSettingsForSheet;
-            }
-        }
     }
 
     

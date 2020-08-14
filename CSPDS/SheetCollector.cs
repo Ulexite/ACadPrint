@@ -6,9 +6,11 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Customization;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Internal.PropertyInspector;
 using log4net;
 
@@ -337,6 +339,23 @@ namespace CSPDS
             this.pageSizeName = pageSizeName;
             this.plotterName = plotterName;
         }
+        
+        public PlotSettings GetSettings()
+        {
+            //Настройки могут быть не в том файле, в котором лист
+            Database db = file.Document.Database;
+            PlotSettings plotSettingsForSheet = new PlotSettings(true);
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                DBDictionary settingsDict =
+                    (DBDictionary) tr.GetObject(db.PlotSettingsDictionaryId, OpenMode.ForRead);
+                plotSettingsForSheet.CopyFrom(tr.GetObject((ObjectId) settingsDict.GetAt(name),
+                    OpenMode.ForRead));
+                return plotSettingsForSheet;
+            }
+        }
+        
     }
 
     public class FormatDescriptor : INotifyPropertyChanged
@@ -477,6 +496,15 @@ namespace CSPDS
 
     public class SheetDescriptor : INotifyPropertyChanged
     {
+        [DllImport("accore.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "acedTrans")]
+        static extern int acedTrans(
+            double[] point,
+            IntPtr fromRb,
+            IntPtr toRb,
+            int disp,
+            double[] result
+        );
+    
         private Dictionary<string, string> properties;
         private ObjectId borderEntity;
         private Database db;
@@ -526,6 +554,30 @@ namespace CSPDS
             OnPropertyChanged("Properties");
         }
 
+        public Extents2d WindowFrom()
+        {
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                Curve curve = (Curve) tr.GetObject(borderEntity, OpenMode.ForRead);
+                Extents3d bounds = curve.Bounds.Value;
+                Point3d first = bounds.MinPoint;
+                Point3d second = bounds.MaxPoint;
+                ResultBuffer rbFrom = new ResultBuffer(new TypedValue(5003, 1));
+                ResultBuffer rbTo = new ResultBuffer(new TypedValue(5003, 2));
+                double[] firres = {0, 0, 0};
+                double[] secres = {0, 0, 0};
+                acedTrans(first.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, firres);
+                acedTrans(second.ToArray(), rbFrom.UnmanagedObject, rbTo.UnmanagedObject, 0, secres);
+                var ret = new Extents2d(
+                    firres[0],
+                    firres[1],
+                    secres[0],
+                    secres[1]
+                );
+                return ret;
+            }
+        }
+        
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
