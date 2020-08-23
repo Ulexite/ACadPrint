@@ -75,6 +75,9 @@ namespace CSPDS
             validator.SetStdScaleType(plotSettingsForSheet, StdScaleType.StdScale1To1);
             validator.SetPlotCentered(plotSettingsForSheet, true);
             validator.SetPlotRotation(plotSettingsForSheet, AutoRotation(window));
+           // validator.RefreshLists(plotSettingsForSheet);
+            
+            
             return plotSettingsForSheet;
         }
 

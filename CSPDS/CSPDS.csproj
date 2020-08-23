@@ -157,6 +157,7 @@
       <DependentUpon>AllObjectsTreeView.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SystemVariableShader.cs" />
     <Compile Include="Views\BorderByFields.xaml.cs">
       <DependentUpon>BorderByFiles.xaml</DependentUpon>
       <SubType>Code</SubType>
