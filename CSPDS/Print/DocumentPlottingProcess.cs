@@ -7,7 +7,7 @@ using log4net;
 
 namespace CSPDS
 {
-    public class DocumentPlottingProcess : IDisposable
+    public class DocumentPlottingProcess : DisposableCollection
     {
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -29,9 +29,13 @@ namespace CSPDS
             this.plotName = plotName;
 
             backgroundPlot = new SystemVariableShader("BACKGROUNDPLOT", 0);
+            Add(backgroundPlot);
             docLock = document.LockDocument();
+            Add(docLock);
             engine = PlotFactory.CreatePublishEngine();
+            Add(engine);
             dialog = new PlotProgressDialog(false, pageCount, true);
+            Add(dialog);
         }
 
         public void BeginPlot(PlotInfo info)
@@ -96,42 +100,5 @@ namespace CSPDS
         }
 
 
-        public void Dispose()
-        {
-            try
-            {
-                docLock.Dispose();
-            }
-            catch (Exception exception)
-            {
-                _log.Error(exception);
-            }
-
-            try
-            {
-                dialog.Dispose();
-            }
-            catch (Exception exception)
-            {
-                _log.Error(exception);
-            }
-
-            try
-            {
-                engine.Dispose();
-            }
-            catch (Exception exception)
-            {
-                _log.Error(exception);
-            }
-            try
-            {
-                backgroundPlot.Dispose();
-            }
-            catch (Exception exception)
-            {
-                _log.Error(exception);
-            }
-        }
     }
 }

@@ -39,35 +39,26 @@ namespace CSPDS
         {
             _log.Debug("Prepare Plan");
             List<PlotPlanItem> ret = new List<PlotPlanItem>();
-            short bgPlot = (short) Application.GetSystemVariable("BACKGROUNDPLOT");
-            Application.SetSystemVariable("BACKGROUNDPLOT", 1);
 
-            try
+            foreach (FileDescriptor file in files)
             {
-                foreach (FileDescriptor file in files)
-                {
-                    foreach (SheetDescriptor sheet in file.Sheets)
-                    {    
-                        if (sheet.IsChecked)
+                foreach (SheetDescriptor sheet in file.Sheets)
+                {    
+                    if (sheet.IsChecked)
+                    {
+                        PlotSettingsDescriptor settings = sheetCollector.DescriptorFor(sheet);
+                        if (!(settings is null))
                         {
-                            PlotSettingsDescriptor settings = sheetCollector.DescriptorFor(sheet);
-                            if (!(settings is null))
-                            {
-                                ret.Add(new PlotPlanItem(sheet, settings));
-                                _log.DebugFormat("В план печати: {0}", sheet.UniqId);
-                            }
-                            else
-                            {
-                                ret.Add(new PlotPlanItem("Не заданы настройки печати"));
-                                _log.ErrorFormat("Не заданы настройки печати {0}", sheet.UniqId);
-                            }
+                            ret.Add(new PlotPlanItem(sheet, settings));
+                            _log.DebugFormat("В план печати: {0}", sheet.UniqId);
+                        }
+                        else
+                        {
+                            ret.Add(new PlotPlanItem("Не заданы настройки печати"));
+                            _log.ErrorFormat("Не заданы настройки печати {0}", sheet.UniqId);
                         }
                     }
                 }
-            }
-            finally
-            {
-                Application.SetSystemVariable("BACKGROUNDPLOT", bgPlot);
             }
 
             return ret;
@@ -78,48 +69,6 @@ namespace CSPDS
             Plotter plotter = new Plotter();
             plotter.Plot(plan);
         }
-
-        private void BeginDocument(PlotEngine plotEngine, PlotInfo plotInfo, PlotPlanItem planItem, string pathToPdf)
-        {
-            plotEngine.BeginDocument(
-                plotInfo,
-                planItem.Sheet.File.Name,
-                null,
-                1,
-                false,
-                pathToPdf
-            );
-        }
-
-        private PlotInfo GetPlotInfo(PlotPlanItem planItem, PlotSettings plotSettingsForSheet)
-        {
-            Database db = planItem.Sheet.Db;
-            using (Transaction tr = db.TransactionManager.StartTransaction())
-            {
-                BlockTableRecord btr =
-                    (BlockTableRecord) tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead);
-                Layout layout = (Layout) tr.GetObject(btr.LayoutId, OpenMode.ForRead);
-                PlotInfo plotInfo = new PlotInfo();
-                plotInfo.Layout = btr.LayoutId;
-                PlotInfoValidator piv = new PlotInfoValidator();
-                piv.MediaMatchingPolicy = MatchingPolicy.MatchEnabled;
-
-                plotInfo.OverrideSettings = plotSettingsForSheet;
-                try
-                {
-                    piv.Validate(plotInfo);
-                }
-                catch (Exception e)
-                {
-                    _log.Error(e);
-                    throw e;
-                }
-
-                return plotInfo;
-            }
-        }
-
-
     }
 
     
