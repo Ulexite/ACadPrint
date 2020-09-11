@@ -5,22 +5,39 @@ using System.Threading;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.PlottingServices;
+using CSPDS.Actors;
+using CSPDS.Model;
+using CSPDS.Utils;
 using log4net;
 using PlotType = Autodesk.AutoCAD.DatabaseServices.PlotType;
 
 namespace CSPDS
 {
-    public class Plotter
+    public class PlottingAction
     {
         private static readonly ILog _log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public void Plot(List<PlotPlanItem> plan)
+        private ModuleUI ui;
+
+        //TODO: Configuration?
+        private readonly GroupsSorter<PlotTask> sorter = new GroupsSorter<PlotTask>("fileName");
+
+        private readonly DestinationPlotSettingsExtractor
+            plotSettingsExtractor = new DestinationPlotSettingsExtractor();
+
+        public ModuleUI Ui
         {
-            List<List<PlotPlanItem>> byDocuments = SortByDocuments(plan);
+            get => ui;
+            set => ui = value;
+        }
+
+        public void Plot(PlotPlan plan)
+        {
+            var byDocuments = sorter.Group(plan.TaskList);
             if (PlotFactory.ProcessPlotState == ProcessPlotState.NotPlotting)
             {
-                foreach (List<PlotPlanItem> documentSheets in byDocuments)
+                foreach (var documentSheets in byDocuments)
                 {
                     try
                     {
@@ -38,64 +55,48 @@ namespace CSPDS
             }
         }
 
-        private void PlotDocument(List<PlotPlanItem> documentSheets)
+        private void PlotDocument(KeyValuePair<string, List<PlotTask>> documentTasks)
         {
-            if (documentSheets.Count <= 0)
+            if (documentTasks.Value.Count <= 0)
                 return;
-            AcUIManager.FocusOnFile(documentSheets[0].Sheet.File);
-            Document document = documentSheets[0].Sheet.File.Document;
-            string plottingName = documentSheets[0].Sheet.File.Name;
+
+            Document document = documentTasks.Value[0].Sheet.Document;
+            ui.FocusOnFile(document);
             using (DocumentPlottingProcess plotting =
-                new DocumentPlottingProcess(document, documentSheets.Count, plottingName))
+                new DocumentPlottingProcess(document, documentTasks.Value.Count, documentTasks.Key))
             {
-                PlotSettings firstSheetSettings = PlotSettingsForSheet(documentSheets[0].Sheet, documentSheets[0].Settings);
-                PlotInfo firstSheetPlotInfo = GetPlotInfo(documentSheets[0].Sheet.Db, firstSheetSettings);
-            
+                PlotSettings firstSheetSettings =
+                    PlotSettingsForSheet(documentTasks.Value[0].Sheet, documentTasks.Value[0].Destination);
+                PlotInfo firstSheetPlotInfo = GetPlotInfo(document.Database, firstSheetSettings);
+
                 plotting.BeginPlot(firstSheetPlotInfo);
 
-                foreach (PlotPlanItem item in documentSheets)
+                foreach (PlotTask task in documentTasks.Value)
                 {
-                    PlotSettings settings = PlotSettingsForSheet(item.Sheet, item.Settings);
-                    PlotInfo info = GetPlotInfo(item.Sheet.Db, settings);
-                    plotting.PlotPage(info,settings);
+                    PlotSettings settings = PlotSettingsForSheet(task.Sheet, task.Destination);
+                    PlotInfo info = GetPlotInfo(task.Sheet.Document.Database, settings);
+                    plotting.PlotPage(info, settings);
                 }
-                
-                plotting.EndPlot();                
+
+                plotting.EndPlot();
             }
         }
 
-        private PlotSettings PlotSettingsForSheet(SheetDescriptor sheet, PlotSettingsDescriptor settings)
+        private PlotSettings PlotSettingsForSheet(Sheet sheet, Destination destination)
         {
-            PlotSettings plotSettingsForSheet = settings.GetSettings();
-            Extents2d window = sheet.WindowFrom();
-            
+            PlotSettings plotSettingsForSheet = plotSettingsExtractor.SettingsFor(destination);
+            Extents2d window = sheet.Bounds;
+
             PlotSettingsValidator validator = PlotSettingsValidator.Current;
             validator.SetPlotWindowArea(plotSettingsForSheet, window);
             validator.SetPlotType(plotSettingsForSheet, PlotType.Window);
             validator.SetStdScaleType(plotSettingsForSheet, StdScaleType.StdScale1To1);
             validator.SetPlotCentered(plotSettingsForSheet, true);
+            //TODO: Вынести в Actor
             validator.SetPlotRotation(plotSettingsForSheet, AutoRotation(window));
-           // validator.RefreshLists(plotSettingsForSheet);
-            
-            
+            //TODO: validator.RefreshLists(plotSettingsForSheet);
+
             return plotSettingsForSheet;
-        }
-
-        private List<List<PlotPlanItem>> SortByDocuments(List<PlotPlanItem> plan)
-        {
-            Dictionary<string, List<PlotPlanItem>> byDocuments = new Dictionary<string, List<PlotPlanItem>>();
-            foreach (PlotPlanItem item in plan)
-            {
-                if (item.IsCorrect)
-                {
-                    if (!byDocuments.ContainsKey(item.Sheet.File.Name))
-                        byDocuments.Add(item.Sheet.File.Name, new List<PlotPlanItem>());
-
-                    byDocuments[item.Sheet.File.Name].Add(item);
-                }
-            }
-
-            return new List<List<PlotPlanItem>>(byDocuments.Values);
         }
 
         private PlotRotation AutoRotation(Extents2d window)

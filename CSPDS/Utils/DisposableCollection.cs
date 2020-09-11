@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace CSPDS
+namespace CSPDS.Utils
 {
     public class DisposableCollection: IDisposable
     {
@@ -19,7 +19,7 @@ namespace CSPDS
                 {
                     dgt.Dispose();
                 }
-                catch (Exception ignored)
+                catch (Exception)
                 {
                     //ignored
                 }

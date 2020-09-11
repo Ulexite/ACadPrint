@@ -3,6 +3,7 @@ using System.Reflection;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.PlottingServices;
+using CSPDS.Utils;
 using log4net;
 
 namespace CSPDS

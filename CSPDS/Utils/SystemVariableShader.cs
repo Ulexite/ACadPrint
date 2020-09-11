@@ -1,7 +1,7 @@
 ﻿using System;
 using Autodesk.AutoCAD.ApplicationServices.Core;
 
-namespace CSPDS
+namespace CSPDS.Utils
 {
     public class SystemVariableShader : IDisposable
     {

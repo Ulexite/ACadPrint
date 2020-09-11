@@ -101,6 +101,10 @@
     <Reference Include="AdWindows">
       <HintPath>..\..\..\..\Toolware\autodesk\Autodesk_ObjectARX_2019_Win_64_and_32_Bit\inc\AdWindows.dll</HintPath>
     </Reference>
+    <Reference Include="Json.Net, Version=1.0.18.1, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Json.Net.1.0.18\lib\netstandard2.0\Json.Net.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a">
       <HintPath>..\packages\log4net.2.0.8\lib\net45-full\log4net.dll</HintPath>
       <Private>True</Private>
@@ -128,16 +132,29 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DisposableCollection.cs" />
-    <Compile Include="Print\DocumentPlottingProcess.cs" />
-    <Compile Include="Print\Plotter.cs" />
-    <Compile Include="Print\PrintManager.cs" />
-    
-    <Compile Include="AcUIManager.cs" />
-    <Compile Include="SheetCollector.cs" />
+    <Compile Include="ModelActors\BoundsCalculator.cs" />
+    <Compile Include="ModelActors\DestinationCreator.cs" />
+    <Compile Include="ModelActors\DestinationPlotSettingsExtractor.cs" />
+    <Compile Include="ModelActors\DestinationsExtractor.cs" />
+    <Compile Include="ModelActors\PropertiesExractor.cs" />
+    <Compile Include="ModelActors\SheetCreator.cs" />
+    <Compile Include="ModelActors\SheetsExtractor.cs" />
+    <Compile Include="Model\Destination.cs" />
+    <Compile Include="Model\DestinationStorage.cs" />
+    <Compile Include="Model\ModuleModel.cs" />
+    <Compile Include="Model\PlotPlan.cs" />
+    <Compile Include="Model\PlotTask.cs" />
+    <Compile Include="Model\Sheet.cs" />
+    <Compile Include="Model\SheetCache.cs" />
+    <Compile Include="Module.cs" />
+    <Compile Include="ModuleUI.cs" />
+    <Compile Include="Plot\DocumentPlottingProcess.cs" />
+    <Compile Include="Plot\PlottingAction.cs" />
     <Compile Include="CommandClass.cs" />
     <Compile Include="Initializator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Annotations.cs" />
+
     <Compile Include="Properties\CmdOptions.Designer.cs">
       <DependentUpon>CmdOptions.resx</DependentUpon>
       <AutoGen>True</AutoGen>
@@ -153,35 +170,41 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>ErrorMessages.resx</DependentUpon>
     </Compile>
-    <Compile Include="SystemVariableShader.cs" />
-    <Compile Include="Views\BorderByFields.xaml.cs">
-      <DependentUpon>BorderByFiles.xaml</DependentUpon>
+    <Compile Include="Utils\DisposableCollection.cs" />
+    <Compile Include="Utils\GroupsSorter.cs" />
+    <Compile Include="Utils\IPropertiesHolder.cs" />
+    <Compile Include="Utils\SystemVariableShader.cs" />
+    <Compile Include="ViewModel\DestinationVariant.cs" />
+    <Compile Include="ViewModel\DestinationVariants.cs" />
+    <Compile Include="ViewModel\FormatDestination.cs" />
+    <Compile Include="ViewModel\Formats.cs" />
+    <Compile Include="ViewModel\Selectable.cs" />
+    <Compile Include="ViewModel\SheetsGroupTree.cs" />
+    <Compile Include="ViewModel\SheetsGroupTreeNode.cs" />
+    <Compile Include="ViewModel\SheetTreeNode.cs" />
+    <Compile Include="ViewModel\SheetTreeNodeCache.cs" />
+    <Compile Include="Views\FormatDestinationView.xaml.cs">
+      <DependentUpon>FormatDestinationView.xaml</DependentUpon>
       <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Views\FormatPlotSettings.xaml.cs">
-      <DependentUpon>FormatPlotSettings.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Views\PlotSettingsList.xaml.cs">
-      <DependentUpon>PlotSettingsList.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
+	</Compile>
     <Compile Include="Views\PlotPlanPreview.xaml.cs">
       <DependentUpon>PlotPlanPreview.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Views\SheetsGroup.xaml.cs">
+      <DependentUpon>SheetsGroup.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+	
   </ItemGroup>
   <ItemGroup>
-    <Page Include="Views\BorderByFiles.xaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Page Include="Views\FormatPlotSettings.xaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Page Include="Views\PlotSettingsList.xaml" />
+    <Page Include="Views\SheetsGroup.xaml" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="Views\PlotPlanPreview.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Views\FormatDestinationView.xaml" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\CmdOptions.resx">
@@ -202,7 +225,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Docs\TestCases.md" />
     <Content Include="log4net.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

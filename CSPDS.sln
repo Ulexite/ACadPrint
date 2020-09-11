@@ -8,6 +8,8 @@ EndProject
 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSPDS", "CSPDS\CSPDS.csproj", "{A1C752F5-8EF6-44A6-BFAD-C3948D05C452}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSPDSTests", "CSPDSTests\CSPDSTests.csproj", "{65F71B62-23B4-4F79-B65E-01BE9ABB6423}"
+EndProject
 
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,5 +27,13 @@ Global
 		{A1C752F5-8EF6-44A6-BFAD-C3948D05C452}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A1C752F5-8EF6-44A6-BFAD-C3948D05C452}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A1C752F5-8EF6-44A6-BFAD-C3948D05C452}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Debug|x86.Build.0 = Debug|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Release|x86.ActiveCfg = Release|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Release|x86.Build.0 = Release|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65F71B62-23B4-4F79-B65E-01BE9ABB6423}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
